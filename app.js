@@ -931,11 +931,12 @@ Dúvidas ou alterações? Responda a esta mensagem!
     el.printHours.value = '0';
     el.printMinutes.value = '0';
 
-    let totalWeightG = 0;
-    let totalTimeSec = 0;
-    let plateCount = 0;
-    let foundData = false;
-    let plateDetails = [];
+    const plateSelectorContainer = document.getElementById('plate-selector-container');
+    const plateSelectorButtons = document.getElementById('plate-selector-buttons');
+    if (plateSelectorContainer) plateSelectorContainer.classList.add('hidden');
+    if (plateSelectorButtons) plateSelectorButtons.innerHTML = '';
+
+    let plates = [];
 
     // Attempt 1: Try reading as JSZip container first (for .3mf files)
     if (window.JSZip) {
@@ -951,7 +952,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
           // Match each <plate> block in XML
           const plateBlocks = content.split(/<\/plate>/i);
 
-          plateBlocks.forEach((block) => {
+          plateBlocks.forEach((block, idx) => {
             if (!block.includes('<plate')) return;
 
             // Extract weight for this plate
@@ -971,35 +972,38 @@ Dúvidas ou alterações? Responda a esta mensagem!
             if (pAttr) plateTime = parseFloat(pAttr[1]);
 
             if (plateWeight > 0 || plateTime > 0) {
-              plateCount++;
-              totalWeightG += plateWeight;
-              totalTimeSec += plateTime;
-              foundData = true;
-
-              const h = Math.floor(plateTime / 3600);
-              const m = Math.round((plateTime % 3600) / 60);
-              plateDetails.push(`Mesa ${plateCount}: ${plateWeight.toFixed(1)}g / ${h > 0 ? h + 'h ' : ''}${m}m`);
+              plates.push({
+                index: plates.length + 1,
+                name: `Mesa ${plates.length + 1}`,
+                weightG: plateWeight,
+                timeSec: plateTime
+              });
             }
           });
         }
 
-        // If missing weight or time, scan G-code files inside zip
-        if (!totalWeightG || !totalTimeSec) {
+        // If metadata not found in slice_info, scan G-code files inside zip
+        if (plates.length === 0) {
           const gcodeFiles = Object.keys(zip.files).filter(path => /\.gcode$/i.test(path));
-          for (const gPath of gcodeFiles) {
-            const gContent = await zip.file(gPath).async('string');
-            const parsed = parseGcodeTextContent(gContent);
-            if (parsed.weightG) { totalWeightG += parsed.weightG; foundData = true; }
-            if (parsed.timeSec) { totalTimeSec += parsed.timeSec; foundData = true; }
+          gcodeFiles.forEach((gPath, idx) => {
+            zip.file(gPath).async('string').then(gContent => {
+              const parsed = parseGcodeTextContent(gContent);
+              if (parsed.weightG || parsed.timeSec) {
+                plates.push({
+                  index: idx + 1,
+                  name: `Mesa ${idx + 1}`,
+                  weightG: parsed.weightG || 0,
+                  timeSec: parsed.timeSec || 0
+                });
+              }
+            });
           }
         }
 
-        const rawMatchedLine = plateCount > 1 
-          ? `Soma de ${plateCount} Mesas/Placas: ${plateDetails.join(' | ')}`
-          : (plateDetails[0] || 'Metadata 3MF');
-
-        applyParsedResults(totalWeightG, totalTimeSec, cleanName, foundData, rawMatchedLine);
-        return;
+        if (plates.length > 0) {
+          handlePlatesSelection(plates, cleanName);
+          return;
+        }
 
       } catch (zipErr) {
         console.warn('JSZip read fallback:', zipErr);
@@ -1015,6 +1019,69 @@ Dúvidas ou alterações? Responda a esta mensagem!
       console.error('Erro ao ler arquivo de G-code:', err);
       showToast(`⚠️ Não foi possível ler o arquivo "${cleanName}".`);
     }
+  }
+
+  function handlePlatesSelection(plates, cleanName) {
+    const plateSelectorContainer = document.getElementById('plate-selector-container');
+    const plateSelectorButtons = document.getElementById('plate-selector-buttons');
+
+    if (plates.length === 1) {
+      if (plateSelectorContainer) plateSelectorContainer.classList.add('hidden');
+      applyParsedResults(plates[0].weightG, plates[0].timeSec, cleanName, true, `Mesa 1: ${plates[0].weightG.toFixed(1)}g`);
+      return;
+    }
+
+    // Multiple plates found in project
+    const totalWeight = plates.reduce((acc, p) => acc + p.weightG, 0);
+    const totalTime = plates.reduce((acc, p) => acc + p.timeSec, 0);
+
+    if (plateSelectorContainer && plateSelectorButtons) {
+      plateSelectorContainer.classList.remove('hidden');
+
+      let btnsHtml = '';
+      plates.forEach((p, idx) => {
+        const h = Math.floor(p.timeSec / 3600);
+        const m = Math.round((p.timeSec % 3600) / 60);
+        const timeStr = `${h > 0 ? h + 'h ' : ''}${m}m`;
+        btnsHtml += `
+          <button class="chip-btn ${idx === 0 ? 'active' : ''}" data-plate-type="single" data-plate-idx="${idx}">
+            ${p.name} (${p.weightG.toFixed(1)}g - ${timeStr})
+          </button>
+        `;
+      });
+
+      const totalH = Math.floor(totalTime / 3600);
+      const totalM = Math.round((totalTime % 3600) / 60);
+      const totalTimeStr = `${totalH > 0 ? totalH + 'h ' : ''}${totalM}m`;
+      btnsHtml += `
+        <button class="chip-btn" data-plate-type="all" data-plate-idx="all">
+          Todas as ${plates.length} Mesas Juntas (${totalWeight.toFixed(1)}g - ${totalTimeStr})
+        </button>
+      `;
+
+      plateSelectorButtons.innerHTML = btnsHtml;
+
+      // Event listener for plate buttons
+      document.querySelectorAll('[data-plate-type]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('[data-plate-type]').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+
+          const type = e.target.dataset.plateType;
+          if (type === 'single') {
+            const idx = parseInt(e.target.dataset.plateIdx);
+            const sel = plates[idx];
+            applyParsedResults(sel.weightG, sel.timeSec, `${cleanName} (${sel.name})`, true, `Selecionada: ${sel.name}`);
+          } else {
+            applyParsedResults(totalWeight, totalTime, `${cleanName} (Todas as Mesas)`, true, `Projeto Completo: ${plates.length} Mesas`);
+          }
+        });
+      });
+    }
+
+    // Default selection: Select Plate 1 by default
+    const first = plates[0];
+    applyParsedResults(first.weightG, first.timeSec, `${cleanName} (${first.name})`, true, `Selecionada: ${first.name} (${plates.length} mesas encontradas)`);
   }
 
   async function readGcodeFileAsText(file) {

@@ -115,15 +115,21 @@
           <div class="file-debug-box hidden" id="file-debug-box">
             <div class="debug-header">
               <i data-lucide="check-circle-2" class="text-accent"></i>
-              <span id="debug-file-name">Arquivo: noty+pla.gcode3.gcode</span>
+              <span id="debug-file-name">Arquivo Importado</span>
             </div>
             <div class="debug-details">
-              <span>Peso: <strong id="debug-weight-val">53.22g</strong></span> &bull; 
-              <span>Tempo: <strong id="debug-time-val">0h 56m</strong></span>
+              <span>Peso: <strong id="debug-weight-val">0.00g</strong></span> &bull; 
+              <span>Tempo: <strong id="debug-time-val">0h 0m</strong></span>
             </div>
-            <div class="debug-line" id="debug-line-text">Linha lida: ; estimated printing time (normal mode) = 56m 12s</div>
+            <div class="debug-line" id="debug-line-text">Metadados lidos</div>
+
+            <!-- Seletor de Mesas (para projetos 3MF com varias placas) -->
+            <div id="plate-selector-container" class="hidden" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.15);">
+              <label style="font-size: 0.75rem; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text-main);">Este projeto tem várias mesas. Selecione qual precificar:</label>
+              <div id="plate-selector-buttons" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+            </div>
             
-            <button id="btn-toggle-file-preview" class="btn btn-secondary btn-sm" style="margin-top: 6px; font-size: 0.75rem; padding: 4px 8px;">
+            <button id="btn-toggle-file-preview" class="btn btn-secondary btn-sm" style="margin-top: 8px; font-size: 0.75rem; padding: 4px 8px;">
               🔍 Ver Primeiras Linhas do Arquivo
             </button>
             <pre id="debug-file-preview" class="quote-preview-box hidden" style="max-height: 150px; font-size: 0.7rem; margin-top: 6px; font-family: monospace; overflow-x: auto;"></pre>
@@ -833,6 +839,6 @@
     <p>Calculadora de Impressão 3D Pro &bull; Desenvolvido para <strong>Bambu Lab A1 Combo</strong> & Fatiadores 3D</p>
   </footer>
 
-  <script src="app.js?v=2.2.0"></script>
+  <script src="app.js?v=2.3.0"></script>
 </body>
 </html>
