@@ -899,46 +899,61 @@ Dúvidas ou alterações? Responda a esta mensagem!
     const cleanName = fileName.replace(/\.(3mf|gcode|gcode[0-9]*|gcode\.gz)$/i, '');
     el.projectName.value = cleanName;
 
-    // Reset values to zero before importing new file
+    // Reset values before parsing
     el.filamentWeight.value = '0.00';
     el.printHours.value = '0';
     el.printMinutes.value = '0';
 
     let totalWeightG = 0;
     let totalTimeSec = 0;
+    let plateCount = 0;
     let foundData = false;
+    let plateDetails = [];
 
-    // Attempt 1: Try reading as JSZip container first (for .3mf files regardless of extension)
+    // Attempt 1: Try reading as JSZip container first (for .3mf files)
     if (window.JSZip) {
       try {
         const zip = await JSZip.loadAsync(file);
+
+        // Find slice_info.config
+        const sliceConfigFile = zip.file(/slice_info\.config$/i)[0] || zip.file(/slice_info/i)[0];
         
-        // Inspect slice_info.config or any .config / .xml / .json file in zip
-        const configFiles = Object.keys(zip.files).filter(path => 
-          /slice_info/i.test(path) || /plate_/i.test(path) || /\.config$/i.test(path) || /\.json$/i.test(path)
-        );
+        if (sliceConfigFile) {
+          const content = await sliceConfigFile.async('string');
 
-        for (const filePath of configFiles) {
-          const zipObj = zip.file(filePath);
-          if (!zipObj) continue;
-          const content = await zipObj.async('string');
+          // Match each <plate> block in XML
+          const plateBlocks = content.split(/<\/plate>/i);
 
-          // Sum used_g in Bambu Studio XML: <filament id="1" used_g="84.30" />
-          const filamentGMatches = [...content.matchAll(/used_g=["']([0-9.]+)["']/gi)];
-          if (filamentGMatches.length > 0) {
-            const sumG = filamentGMatches.reduce((acc, m) => acc + parseFloat(m[1]), 0);
-            if (sumG > 0) { totalWeightG = sumG; foundData = true; }
-          }
+          plateBlocks.forEach((block) => {
+            if (!block.includes('<plate')) return;
 
-          if (!totalWeightG) {
-            const weightAttr = content.match(/key=["']weight["']\s+value=["']([0-9.]+)["']/i) ||
-                               content.match(/weight[_\s]*g?["\s:=]+([0-9.]+)/i);
-            if (weightAttr) { totalWeightG = parseFloat(weightAttr[1]); foundData = true; }
-          }
+            // Extract weight for this plate
+            let plateWeight = 0;
+            const filamentGMatches = [...block.matchAll(/used_g=["']([0-9.]+)["']/gi)];
+            if (filamentGMatches.length > 0) {
+              plateWeight = filamentGMatches.reduce((acc, m) => acc + parseFloat(m[1]), 0);
+            }
+            if (plateWeight === 0) {
+              const wAttr = block.match(/key=["']weight["']\s+value=["']([0-9.]+)["']/i);
+              if (wAttr) plateWeight = parseFloat(wAttr[1]);
+            }
 
-          const predAttr = content.match(/key=["']prediction["']\s+value=["']([0-9.]+)["']/i) ||
-                           content.match(/prediction["\s:=]+([0-9.]+)/i);
-          if (predAttr) { totalTimeSec = parseFloat(predAttr[1]); foundData = true; }
+            // Extract prediction time for this plate
+            let plateTime = 0;
+            const pAttr = block.match(/key=["']prediction["']\s+value=["']([0-9.]+)["']/i);
+            if (pAttr) plateTime = parseFloat(pAttr[1]);
+
+            if (plateWeight > 0 || plateTime > 0) {
+              plateCount++;
+              totalWeightG += plateWeight;
+              totalTimeSec += plateTime;
+              foundData = true;
+
+              const h = Math.floor(plateTime / 3600);
+              const m = Math.round((plateTime % 3600) / 60);
+              plateDetails.push(`Mesa ${plateCount}: ${plateWeight.toFixed(1)}g / ${h > 0 ? h + 'h ' : ''}${m}m`);
+            }
+          });
         }
 
         // If missing weight or time, scan G-code files inside zip
@@ -947,16 +962,20 @@ Dúvidas ou alterações? Responda a esta mensagem!
           for (const gPath of gcodeFiles) {
             const gContent = await zip.file(gPath).async('string');
             const parsed = parseGcodeTextContent(gContent);
-            if (parsed.weightG) { totalWeightG = parsed.weightG; foundData = true; }
-            if (parsed.timeSec) { totalTimeSec = parsed.timeSec; foundData = true; }
+            if (parsed.weightG) { totalWeightG += parsed.weightG; foundData = true; }
+            if (parsed.timeSec) { totalTimeSec += parsed.timeSec; foundData = true; }
           }
         }
 
-        applyParsedResults(totalWeightG, totalTimeSec, cleanName, foundData);
+        const rawMatchedLine = plateCount > 1 
+          ? `Soma de ${plateCount} Mesas/Placas: ${plateDetails.join(' | ')}`
+          : (plateDetails[0] || 'Metadata 3MF');
+
+        applyParsedResults(totalWeightG, totalTimeSec, cleanName, foundData, rawMatchedLine);
         return;
 
       } catch (zipErr) {
-        // Not a zip archive, fallback to GZIP decompressor / plain text G-code reader
+        console.warn('JSZip read fallback:', zipErr);
       }
     }
 
