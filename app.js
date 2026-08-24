@@ -897,7 +897,15 @@ Dúvidas ou alterações? Responda a esta mensagem!
   const fileInput = document.getElementById('file-input');
 
   if (dropzone && fileInput) {
-    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    dropzone.addEventListener('click', (e) => {
+      e.preventDefault();
+      fileInput.value = '';
+      fileInput.click();
+    });
 
     dropzone.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -917,6 +925,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
     fileInput.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
         parse3MFFile(e.target.files[0]);
+        fileInput.value = '';
       }
     });
   }
