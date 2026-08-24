@@ -562,6 +562,43 @@ h1, h2, h3, h4, .brand-logo {
 .tag-cyan { background: rgba(6, 182, 212, 0.15); color: var(--info); border-color: rgba(6, 182, 212, 0.3); }
 .tag-emerald { background: rgba(16, 185, 129, 0.15); color: var(--accent); border-color: rgba(16, 185, 129, 0.3); }
 
+/* Inspector de Metadados do Arquivo Importado */
+.file-debug-box {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.825rem;
+}
+
+.debug-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.debug-details {
+  color: var(--text-main);
+  font-size: 0.85rem;
+}
+
+.debug-line {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
 /* Dropzone para Importação de .3MF */
 .dropzone {
   border: 2px dashed rgba(99, 102, 241, 0.35);

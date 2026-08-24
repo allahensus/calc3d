@@ -102,7 +102,20 @@
               <strong>Arraste seu arquivo .3MF ou .gcode do Bambu Studio aqui</strong>
               <span>ou clique para selecionar no seu computador</span>
             </div>
-            <input type="file" id="file-input" accept=".3mf,.gcode,.gcode.gz" class="hidden-input">
+            <input type="file" id="file-input" accept=".3mf,.gcode,.gcode2,.gcode3,.gcode.gz" class="hidden-input">
+          </div>
+
+          <!-- Inspector de Metadados do Arquivo Importado -->
+          <div class="file-debug-box hidden" id="file-debug-box">
+            <div class="debug-header">
+              <i data-lucide="check-circle-2" class="text-accent"></i>
+              <span id="debug-file-name">Arquivo: noty+pla.gcode3.gcode</span>
+            </div>
+            <div class="debug-details">
+              <span>Peso: <strong id="debug-weight-val">53.22g</strong></span> &bull; 
+              <span>Tempo: <strong id="debug-time-val">0h 56m</strong></span>
+            </div>
+            <div class="debug-line" id="debug-line-text">Linha lida: ; estimated printing time (normal mode) = 56m 12s</div>
           </div>
 
           <div class="form-row">
@@ -805,6 +818,6 @@
     <p>Calculadora de Impressão 3D Pro &bull; Desenvolvido para <strong>Bambu Lab A1 Combo</strong> & Fatiadores 3D</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2.0.1"></script>
 </body>
 </html>

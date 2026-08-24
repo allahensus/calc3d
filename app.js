@@ -964,12 +964,18 @@ Dúvidas ou alterações? Responda a esta mensagem!
     const reader = new FileReader();
     reader.onload = (e) => {
       const parsed = parseGcodeTextContent(e.target.result);
-      applyParsedResults(parsed.weightG, parsed.timeSec, cleanName, (parsed.weightG > 0 || parsed.timeSec > 0));
+      applyParsedResults(parsed.weightG, parsed.timeSec, cleanName, (parsed.weightG > 0 || parsed.timeSec > 0), parsed.matchedLine);
     };
     reader.readAsText(file);
   }
 
-  function applyParsedResults(weightG, timeSec, cleanName, foundData) {
+  function applyParsedResults(weightG, timeSec, cleanName, foundData, rawMatchedLine) {
+    const fileDebugBox = document.getElementById('file-debug-box');
+    const debugFileName = document.getElementById('debug-file-name');
+    const debugWeightVal = document.getElementById('debug-weight-val');
+    const debugTimeVal = document.getElementById('debug-time-val');
+    const debugLineText = document.getElementById('debug-line-text');
+
     if (weightG && weightG > 0) {
       el.filamentWeight.value = weightG.toFixed(2);
     } else {
@@ -986,12 +992,24 @@ Dúvidas ou alterações? Responda a esta mensagem!
       el.printMinutes.value = '0';
     }
 
+    if (fileDebugBox) {
+      fileDebugBox.classList.remove('hidden');
+      if (debugFileName) debugFileName.textContent = `Arquivo: ${cleanName}`;
+      if (debugWeightVal) debugWeightVal.textContent = weightG > 0 ? `${weightG.toFixed(2)}g` : 'N/D';
+      if (debugTimeVal) {
+        const hDisp = Math.floor((timeSec || 0) / 3600);
+        const mDisp = Math.round(((timeSec || 0) % 3600) / 60);
+        debugTimeVal.textContent = timeSec > 0 ? `${hDisp}h ${mDisp}m` : 'N/D';
+      }
+      if (debugLineText) debugLineText.textContent = rawMatchedLine ? `Origem lida: "${rawMatchedLine}"` : 'Sem metadados de fatiamento encontrados no arquivo';
+    }
+
     if (foundData) {
       const hDisp = Math.floor((timeSec || 0) / 3600);
       const mDisp = Math.round(((timeSec || 0) % 3600) / 60);
       const timeDisplay = timeSec > 0 ? `${hDisp}h ${mDisp}m` : 'tempo N/D';
       const weightDisplay = weightG > 0 ? `${weightG.toFixed(1)}g` : 'peso N/D';
-      showToast(`" ${cleanName} " importado com sucesso: ${weightDisplay} | ${timeDisplay}`);
+      showToast(`" ${cleanName} " importado: ${weightDisplay} | ${timeDisplay}`);
     } else {
       showToast(`⚠️ Não foi possível extrair tempo/peso de "${cleanName}". Verifique o fatiamento.`);
     }
@@ -1002,6 +1020,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
   function parseGcodeTextContent(text) {
     let weightG = null;
     let timeSec = null;
+    let matchedLine = '';
 
     // Line-by-line parsing prevents multiline regex matching errors
     const lines = text.split(/\r?\n/);
@@ -1015,6 +1034,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
         const weightMatch = trimmed.match(/(?:[=:]|\s)\s*([0-9.]+)\s*g?/i);
         if (weightMatch && parseFloat(weightMatch[1]) > 0) {
           weightG = parseFloat(weightMatch[1]);
+          if (!matchedLine) matchedLine = trimmed;
         }
       }
 
@@ -1031,23 +1051,26 @@ Dúvidas ou alterações? Responda a esta mensagem!
         const totalS = (h * 3600) + (m * 60) + s;
         if (totalS > 0) {
           timeSec = totalS;
+          matchedLine = trimmed;
         }
       } else if (timeSec === null && /(?:print_time|total_time|prediction|TIME:)\s*[:=]?\s*([0-9]+)/i.test(trimmed)) {
         const secMatch = trimmed.match(/(?:print_time|total_time|prediction|TIME:)\s*[:=]?\s*([0-9]+)/i);
         if (secMatch && parseInt(secMatch[1]) > 0) {
           timeSec = parseInt(secMatch[1]);
+          matchedLine = trimmed;
         }
       } else if (timeSec === null && /(?:time|build time|tempo)[^0-9]*([0-9]{1,2}):([0-9]{2}):([0-9]{2})/i.test(trimmed)) {
         const hhmmss = trimmed.match(/(?:time|build time|tempo)[^0-9]*([0-9]{1,2}):([0-9]{2}):([0-9]{2})/i);
         if (hhmmss) {
           timeSec = (parseInt(hhmmss[1]) * 3600) + (parseInt(hhmmss[2]) * 60) + parseInt(hhmmss[3]);
+          matchedLine = trimmed;
         }
       }
 
       if (weightG !== null && timeSec !== null) break;
     }
 
-    return { weightG, timeSec };
+    return { weightG, timeSec, matchedLine };
   }
 
   // --- Initial Run ---
