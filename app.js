@@ -65,6 +65,29 @@ document.addEventListener('DOMContentLoaded', () => {
     goalUnitsDaily: document.getElementById('goal-units-daily'),
     goalGrossRevenue: document.getElementById('goal-gross-revenue'),
 
+    // Finance View Elements
+    navTabCalc: document.getElementById('nav-tab-calc'),
+    navTabFinance: document.getElementById('nav-tab-finance'),
+    viewCalculator: document.getElementById('view-calculator'),
+    viewFinance: document.getElementById('view-finance'),
+    salesCountBadge: document.getElementById('sales-count-badge'),
+    btnRegisterSale: document.getElementById('btn-register-sale'),
+    btnClearFinanceHistory: document.getElementById('btn-clear-finance-history'),
+
+    // Finance Metrics Displays
+    finTotalCash: document.getElementById('fin-total-cash'),
+    finGrossRevenue: document.getElementById('fin-gross-revenue'),
+    finNetProfit: document.getElementById('fin-net-profit'),
+    finTotalSalesCount: document.getElementById('fin-total-sales-count'),
+
+    // Envelopes Displays
+    envFilamentVal: document.getElementById('env-filament-val'),
+    envEnergyVal: document.getElementById('env-energy-val'),
+    envMachineVal: document.getElementById('env-machine-val'),
+    envLaborVal: document.getElementById('env-labor-val'),
+    envProfitVal: document.getElementById('env-profit-val'),
+    salesHistoryTableBody: document.getElementById('sales-history-table-body'),
+
     // Displays: Cost Legend & Chart
     summaryWeight: document.getElementById('summary-weight'),
     costFilamentVal: document.getElementById('cost-filament-val'),
@@ -102,6 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     strategy: 'margin',   // 'margin' | 'multiplier' | 'target-price'
     selectedMultiplier: 3,
     activePreset: 'bambu-a1',
+    salesLedger: JSON.parse(localStorage.getItem('calc3d_sales_ledger') || '[]'),
+    currentCalculation: null
   };
 
   // --- Formatting Helpers ---
@@ -204,6 +229,20 @@ document.addEventListener('DOMContentLoaded', () => {
       netMarginPct = sellingPrice > 0 ? (netProfit / sellingPrice) * 100 : 0;
       el.pricingModeLabel.textContent = `Preço Fixo`;
     }
+
+    // Save current calculation details for sales registration
+    state.currentCalculation = {
+      name: el.projectName.value || "Peça 3D",
+      sellingPrice,
+      totalProductionCost,
+      netProfit,
+      costFilament,
+      costEnergy,
+      costMachineTotal,
+      costLabor,
+      costExtras: extras + costRisk,
+      platformFeeValue
+    };
 
     // 4. Update Main Displays
     el.finalSellingPrice.textContent = fmtNum(sellingPrice, 2);
@@ -510,6 +549,148 @@ Dúvidas ou alterações? Responda a esta mensagem!
 `.trim();
 
     el.quoteTextBox.innerText = text;
+  }
+
+  // --- Finance & Cash Ledger Manager ---
+  function registerCurrentSale() {
+    if (!state.currentCalculation) return;
+
+    const sale = {
+      id: Date.now(),
+      date: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      name: state.currentCalculation.name,
+      sellingPrice: state.currentCalculation.sellingPrice,
+      costPrice: state.currentCalculation.totalProductionCost,
+      netProfit: state.currentCalculation.netProfit,
+      costFilament: state.currentCalculation.costFilament,
+      costEnergy: state.currentCalculation.costEnergy,
+      costMachine: state.currentCalculation.costMachineTotal,
+      costLabor: state.currentCalculation.costLabor,
+    };
+
+    state.salesLedger.unshift(sale);
+    localStorage.setItem('calc3d_sales_ledger', JSON.stringify(state.salesLedger));
+    
+    renderFinanceDashboard();
+    showToast(`Venda de "${sale.name}" (${fmtCurrency(sale.sellingPrice)}) registrada no caixa!`);
+  }
+
+  function deleteSale(id) {
+    state.salesLedger = state.salesLedger.filter(item => item.id !== id);
+    localStorage.setItem('calc3d_sales_ledger', JSON.stringify(state.salesLedger));
+    renderFinanceDashboard();
+    showToast("Venda removida do caixa.");
+  }
+
+  function clearFinanceHistory() {
+    if (confirm("Tem certeza que deseja limpar todo o histórico de vendas do caixa?")) {
+      state.salesLedger = [];
+      localStorage.setItem('calc3d_sales_ledger', JSON.stringify(state.salesLedger));
+      renderFinanceDashboard();
+      showToast("Histórico de caixa zerado.");
+    }
+  }
+
+  function renderFinanceDashboard() {
+    if (!el.finTotalCash) return;
+
+    const count = state.salesLedger.length;
+    if (el.salesCountBadge) el.salesCountBadge.textContent = count;
+    if (el.finTotalSalesCount) el.finTotalSalesCount.textContent = `${count} ${count === 1 ? 'venda' : 'vendas'}`;
+
+    let totalGross = 0;
+    let totalNetProfit = 0;
+    let envFilament = 0;
+    let envEnergy = 0;
+    let envMachine = 0;
+    let envLabor = 0;
+
+    state.salesLedger.forEach(item => {
+      totalGross += item.sellingPrice || 0;
+      totalNetProfit += item.netProfit || 0;
+      envFilament += item.costFilament || 0;
+      envEnergy += item.costEnergy || 0;
+      envMachine += item.costMachine || 0;
+      envLabor += item.costLabor || 0;
+    });
+
+    el.finTotalCash.textContent = fmtCurrency(totalGross);
+    el.finGrossRevenue.textContent = fmtCurrency(totalGross);
+    el.finNetProfit.textContent = fmtCurrency(totalNetProfit);
+
+    el.envFilamentVal.textContent = fmtCurrency(envFilament);
+    el.envEnergyVal.textContent = fmtCurrency(envEnergy);
+    el.envMachineVal.textContent = fmtCurrency(envMachine);
+    el.envLaborVal.textContent = fmtCurrency(envLabor);
+    el.envProfitVal.textContent = fmtCurrency(totalNetProfit);
+
+    // Render Table
+    if (!el.salesHistoryTableBody) return;
+
+    if (count === 0) {
+      el.salesHistoryTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+            Nenhuma venda registrada ainda. Clique em <strong>"Registrar Venda no Caixa"</strong> na calculadora!
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    state.salesLedger.forEach(item => {
+      html += `
+        <tr>
+          <td><small class="text-muted">${item.date}</small></td>
+          <td><strong>${item.name}</strong></td>
+          <td>${fmtCurrency(item.sellingPrice)}</td>
+          <td>${fmtCurrency(item.costPrice)}</td>
+          <td><span class="text-success font-bold">${fmtCurrency(item.netProfit)}</span></td>
+          <td>
+            <button class="btn btn-secondary btn-sm btn-delete-sale" data-id="${item.id}" style="padding: 2px 8px; font-weight: bold;">
+              &times;
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    el.salesHistoryTableBody.innerHTML = html;
+
+    // Attach delete listeners
+    document.querySelectorAll('.btn-delete-sale').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = parseInt(e.target.dataset.id);
+        deleteSale(id);
+      });
+    });
+  }
+
+  // --- Main View Tabs Switcher ---
+  if (el.navTabCalc && el.navTabFinance) {
+    el.navTabCalc.addEventListener('click', () => {
+      el.navTabCalc.classList.add('active');
+      el.navTabFinance.classList.remove('active');
+      el.viewCalculator.classList.remove('hidden');
+      el.viewFinance.classList.add('hidden');
+    });
+
+    el.navTabFinance.addEventListener('click', () => {
+      el.navTabFinance.classList.add('active');
+      el.navTabCalc.classList.remove('active');
+      el.viewFinance.classList.remove('hidden');
+      el.viewCalculator.classList.add('hidden');
+      renderFinanceDashboard();
+    });
+  }
+
+  if (el.btnRegisterSale) {
+    el.btnRegisterSale.addEventListener('click', registerCurrentSale);
+  }
+
+  if (el.btnClearFinanceHistory) {
+    el.btnClearFinanceHistory.addEventListener('click', clearFinanceHistory);
   }
 
   // --- Toast Notification ---
@@ -851,4 +1032,5 @@ Dúvidas ou alterações? Responda a esta mensagem!
 
   // --- Initial Run ---
   calculateAll();
+  renderFinanceDashboard();
 });

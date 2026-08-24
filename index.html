@@ -45,27 +45,44 @@
         </button>
       </div>
     </div>
+
+    <!-- Navegação de Abas Principais -->
+    <nav class="main-tabs-nav">
+      <div class="header-container">
+        <button class="main-tab-btn active" id="nav-tab-calc">
+          <i data-lucide="calculator"></i>
+          Calculadora & Precificação
+        </button>
+        <button class="main-tab-btn" id="nav-tab-finance">
+          <i data-lucide="wallet"></i>
+          Painel Financeiro & Fluxo de Caixa
+          <span class="badge-count" id="sales-count-badge">0</span>
+        </button>
+      </div>
+    </nav>
   </header>
 
   <!-- Main Workspace -->
-  <main class="main-layout">
+  <main class="main-layout-container">
     
-    <!-- Left Column: Input Form Sections -->
-    <section class="inputs-column">
-
-      <!-- Preset Bar -->
-      <div class="card preset-card">
-        <div class="preset-header">
-          <i data-lucide="sparkles" class="text-accent"></i>
-          <span>Presets Rápidos:</span>
-        </div>
-        <div class="preset-buttons">
-          <button class="chip-btn active" data-preset="bambu-a1">Bambu A1 Combo</button>
-          <button class="chip-btn" data-preset="bambu-mini">Bambu A1 Mini</button>
-          <button class="chip-btn" data-preset="bambu-p1s">Bambu P1S / X1C</button>
-          <button class="chip-btn" data-preset="ender-3">Ender 3 / V3</button>
-        </div>
-      </div>
+    <!-- Visualização 1: Calculadora de Impressão 3D -->
+    <div id="view-calculator" class="view-panel active">
+      <div class="main-layout">
+        <!-- Left Column & Right Column content handled inside -->
+        <section class="inputs-column">
+          <!-- Preset Bar -->
+          <div class="card preset-card">
+            <div class="preset-header">
+              <i data-lucide="sparkles" class="text-accent"></i>
+              <span>Presets Rápidos:</span>
+            </div>
+            <div class="preset-buttons">
+              <button class="chip-btn active" data-preset="bambu-a1">Bambu A1 Combo</button>
+              <button class="chip-btn" data-preset="bambu-mini">Bambu A1 Mini</button>
+              <button class="chip-btn" data-preset="bambu-p1s">Bambu P1S / X1C</button>
+              <button class="chip-btn" data-preset="ender-3">Ender 3 / V3</button>
+            </div>
+          </div>
 
       <!-- Section 1: Dados do Fatiador (Impressão) -->
       <div class="card accordion active">
@@ -583,11 +600,15 @@
         </div>
       </div>
 
-      <!-- Action Buttons: WhatsApp & PDF Export -->
+      <!-- Action Buttons: WhatsApp & PDF Export & Register Sale -->
       <div class="actions-row">
-        <button id="btn-open-quote-modal" class="btn btn-primary btn-block btn-lg">
+        <button id="btn-open-quote-modal" class="btn btn-primary btn-lg">
           <i data-lucide="send"></i>
-          Gerar Orçamento p/ Cliente (WhatsApp / PDF)
+          Orçamento WhatsApp
+        </button>
+        <button id="btn-register-sale" class="btn btn-preset btn-lg">
+          <i data-lucide="plus-circle"></i>
+          Registrar Venda no Caixa
         </button>
         <button id="btn-save-project" class="btn btn-secondary btn-lg">
           <i data-lucide="save"></i>
@@ -596,6 +617,136 @@
       </div>
 
     </section>
+    </div> <!-- End .main-layout -->
+    </div> <!-- End #view-calculator -->
+
+    <!-- Visualização 2: Painel Financeiro & Fluxo de Caixa da Empresa -->
+    <div id="view-finance" class="view-panel hidden">
+      <!-- Top Metrics Dashboard -->
+      <div class="finance-metrics-grid">
+        <div class="card metric-card card-glow-emerald">
+          <div class="metric-icon"><i data-lucide="wallet"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Caixa Total Acumulado</span>
+            <strong class="metric-value text-success" id="fin-total-cash">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div class="card metric-card">
+          <div class="metric-icon"><i data-lucide="trending-up"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Faturamento Bruto Acumulado</span>
+            <strong class="metric-value" id="fin-gross-revenue">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div class="card metric-card">
+          <div class="metric-icon"><i data-lucide="piggy-bank"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Lucro Líquido Acumulado</span>
+            <strong class="metric-value text-accent" id="fin-net-profit">R$ 0,00</strong>
+          </div>
+        </div>
+
+        <div class="card metric-card">
+          <div class="metric-icon"><i data-lucide="shopping-bag"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Vendas Realizadas</span>
+            <strong class="metric-value" id="fin-total-sales-count">0 vendas</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Envelope Balances Breakdown -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="layers" class="icon-primary"></i>
+            <h2>Envelopes Financeiros (Saldos Separados no Caixa)</h2>
+          </div>
+          <span class="tag tag-emerald">Sub-Contas</span>
+        </div>
+
+        <div class="envelopes-grid">
+          <div class="envelope-box">
+            <div class="envelope-header">
+              <span class="dot dot-filament"></span>
+              <span>Reposição de Filamento</span>
+            </div>
+            <strong id="env-filament-val">R$ 0,00</strong>
+            <small>Reserva para comprar novos rolos</small>
+          </div>
+
+          <div class="envelope-box">
+            <div class="envelope-header">
+              <span class="dot dot-energy"></span>
+              <span>Reserva de Energia</span>
+            </div>
+            <strong id="env-energy-val">R$ 0,00</strong>
+            <small>Reserva para pagar a conta de luz</small>
+          </div>
+
+          <div class="envelope-box">
+            <div class="envelope-header">
+              <span class="dot dot-machine"></span>
+              <span>Depreciação de Máquina</span>
+            </div>
+            <strong id="env-machine-val">R$ 0,00</strong>
+            <small>Fundo para bicos, peças ou nova Bambu</small>
+          </div>
+
+          <div class="envelope-box">
+            <div class="envelope-header">
+              <span class="dot dot-labor"></span>
+              <span>Seu Salário (Pro-labore)</span>
+            </div>
+            <strong id="env-labor-val">R$ 0,00</strong>
+            <small>Pagamento da sua mão de obra</small>
+          </div>
+
+          <div class="envelope-box">
+            <div class="envelope-header">
+              <span class="dot dot-profit"></span>
+              <span>Lucro Limpo da Empresa</span>
+            </div>
+            <strong id="env-profit-val" class="text-success">R$ 0,00</strong>
+            <small>Dividendo reinvestível do negócio</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sales History Ledger Table -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="receipt" class="icon-warning"></i>
+            <h2>Histórico de Vendas & Registro de Caixa</h2>
+          </div>
+          <button id="btn-clear-finance-history" class="btn btn-secondary btn-sm">
+            <i data-lucide="trash-2"></i>
+            Limpar Histórico
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="wholesale-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Projeto / Peça</th>
+                <th>Valor Venda</th>
+                <th>Custo Prod.</th>
+                <th>Lucro Líquido</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sales-history-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div> <!-- End #view-finance -->
 
   </main>
 
