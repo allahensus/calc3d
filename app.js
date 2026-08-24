@@ -964,17 +964,18 @@ Dúvidas ou alterações? Responda a esta mensagem!
     const reader = new FileReader();
     reader.onload = (e) => {
       const parsed = parseGcodeTextContent(e.target.result);
-      applyParsedResults(parsed.weightG, parsed.timeSec, cleanName, (parsed.weightG > 0 || parsed.timeSec > 0), parsed.matchedLine);
+      applyParsedResults(parsed.weightG, parsed.timeSec, cleanName, (parsed.weightG > 0 || parsed.timeSec > 0), parsed.matchedLine, parsed.commentPreview);
     };
     reader.readAsText(file);
   }
 
-  function applyParsedResults(weightG, timeSec, cleanName, foundData, rawMatchedLine) {
+  function applyParsedResults(weightG, timeSec, cleanName, foundData, rawMatchedLine, previewText) {
     const fileDebugBox = document.getElementById('file-debug-box');
     const debugFileName = document.getElementById('debug-file-name');
     const debugWeightVal = document.getElementById('debug-weight-val');
     const debugTimeVal = document.getElementById('debug-time-val');
     const debugLineText = document.getElementById('debug-line-text');
+    const debugFilePreview = document.getElementById('debug-file-preview');
 
     if (weightG && weightG > 0) {
       el.filamentWeight.value = weightG.toFixed(2);
@@ -1001,7 +1002,8 @@ Dúvidas ou alterações? Responda a esta mensagem!
         const mDisp = Math.round(((timeSec || 0) % 3600) / 60);
         debugTimeVal.textContent = timeSec > 0 ? `${hDisp}h ${mDisp}m` : 'N/D';
       }
-      if (debugLineText) debugLineText.textContent = rawMatchedLine ? `Origem lida: "${rawMatchedLine}"` : 'Sem metadados de fatiamento encontrados no arquivo';
+      if (debugLineText) debugLineText.textContent = rawMatchedLine ? `Origem lida: "${rawMatchedLine}"` : 'Sem metadados de tempo/peso encontrados neste arquivo';
+      if (debugFilePreview && previewText) debugFilePreview.textContent = previewText;
     }
 
     if (foundData) {
@@ -1017,6 +1019,17 @@ Dúvidas ou alterações? Responda a esta mensagem!
     calculateAll();
   }
 
+  // Toggle file preview box
+  const btnToggleFilePreview = document.getElementById('btn-toggle-file-preview');
+  if (btnToggleFilePreview) {
+    btnToggleFilePreview.addEventListener('click', () => {
+      const debugFilePreview = document.getElementById('debug-file-preview');
+      if (debugFilePreview) {
+        debugFilePreview.classList.toggle('hidden');
+      }
+    });
+  }
+
   function parseGcodeTextContent(text) {
     let weightG = null;
     let timeSec = null;
@@ -1024,6 +1037,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
 
     // Line-by-line parsing prevents multiline regex matching errors
     const lines = text.split(/\r?\n/);
+    const commentPreview = lines.slice(0, 35).filter(l => l.trim().length > 0).slice(0, 25).join('\n');
 
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trim();
@@ -1070,7 +1084,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
       if (weightG !== null && timeSec !== null) break;
     }
 
-    return { weightG, timeSec, matchedLine };
+    return { weightG, timeSec, matchedLine, commentPreview };
   }
 
   // --- Initial Run ---
