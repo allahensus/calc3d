@@ -956,17 +956,40 @@ Dúvidas ou alterações? Responda a esta mensagem!
         return;
 
       } catch (zipErr) {
-        // Not a zip archive, fallback to plain text G-code reader
+        // Not a zip archive, fallback to GZIP decompressor / plain text G-code reader
       }
     }
 
-    // Attempt 2: Read as plain text G-code file
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const parsed = parseGcodeTextContent(e.target.result);
+    // Attempt 2: Read plain text or GZIP compressed G-code file (.gcode.gz exported by Bambu Studio)
+    try {
+      const gcodeText = await readGcodeFileAsText(file);
+      const parsed = parseGcodeTextContent(gcodeText);
       applyParsedResults(parsed.weightG, parsed.timeSec, cleanName, (parsed.weightG > 0 || parsed.timeSec > 0), parsed.matchedLine, parsed.commentPreview);
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error('Erro ao ler arquivo de G-code:', err);
+      showToast(`⚠️ Não foi possível ler o arquivo "${cleanName}".`);
+    }
+  }
+
+  async function readGcodeFileAsText(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+
+    // Check for GZIP magic header bytes: 0x1F 0x8B (Standard Bambu Studio .gcode.gz export)
+    if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      try {
+        if ('DecompressionStream' in window) {
+          const ds = new DecompressionStream('gzip');
+          const response = new Response(new Blob([arrayBuffer]).stream().pipeThrough(ds));
+          return await response.text();
+        }
+      } catch (gzipErr) {
+        console.warn('Falha na descompactação GZIP nativa:', gzipErr);
+      }
+    }
+
+    // Fallback: UTF-8 plain text decode
+    return new TextDecoder('utf-8').decode(arrayBuffer);
   }
 
   function applyParsedResults(weightG, timeSec, cleanName, foundData, rawMatchedLine, previewText) {
