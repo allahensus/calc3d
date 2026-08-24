@@ -899,6 +899,11 @@ Dúvidas ou alterações? Responda a esta mensagem!
     const cleanName = fileName.replace(/\.(3mf|gcode|gcode\.gz)$/i, '');
     el.projectName.value = cleanName;
 
+    // Reset values to zero before importing new file
+    el.filamentWeight.value = '0.00';
+    el.printHours.value = '0';
+    el.printMinutes.value = '0';
+
     if (fileName.toLowerCase().endsWith('.3mf') && window.JSZip) {
       try {
         const zip = await JSZip.loadAsync(file);
@@ -957,18 +962,19 @@ Dúvidas ou alterações? Responda a esta mensagem!
         }
 
         // Apply results to inputs
-        if (totalWeightG > 0) {
-          el.filamentWeight.value = totalWeightG.toFixed(2);
-        }
+        el.filamentWeight.value = totalWeightG > 0 ? totalWeightG.toFixed(2) : '0.00';
         if (totalTimeSec > 0) {
           const h = Math.floor(totalTimeSec / 3600);
           const m = Math.round((totalTimeSec % 3600) / 60);
           el.printHours.value = h;
           el.printMinutes.value = m;
+        } else {
+          el.printHours.value = '0';
+          el.printMinutes.value = '0';
         }
 
         if (foundData) {
-          showToast(`Projeto Bambu "${cleanName}" importado! (${totalWeightG ? totalWeightG.toFixed(1) + 'g' : ''})`);
+          showToast(`Projeto Bambu "${cleanName}" importado!`);
         } else {
           showToast('⚠️ Arquivo 3MF sem fatiamento prévio. Fatie no Bambu Studio e clique em "Exportar fatiado".');
         }
@@ -982,10 +988,13 @@ Dúvidas ou alterações? Responda a esta mensagem!
       const reader = new FileReader();
       reader.onload = (e) => {
         const parsed = parseGcodeTextContent(e.target.result);
-        if (parsed.weightG) el.filamentWeight.value = parsed.weightG.toFixed(2);
-        if (parsed.timeSec) {
+        el.filamentWeight.value = parsed.weightG ? parsed.weightG.toFixed(2) : '0.00';
+        if (parsed.timeSec && parsed.timeSec > 0) {
           el.printHours.value = Math.floor(parsed.timeSec / 3600);
           el.printMinutes.value = Math.round((parsed.timeSec % 3600) / 60);
+        } else {
+          el.printHours.value = '0';
+          el.printMinutes.value = '0';
         }
         showToast('G-code importado com sucesso!');
         calculateAll();
@@ -998,33 +1007,42 @@ Dúvidas ou alterações? Responda a esta mensagem!
     let weightG = null;
     let timeSec = null;
 
-    // Weight matchers (Bambu Studio, PrusaSlicer, OrcaSlicer)
-    const weightMatch = text.match(/total filament weight \[g\]\s*=\s*([0-9.]+)/i) ||
-                        text.match(/filament_used_g\s*=\s*([0-9.]+)/i) ||
-                        text.match(/used_g\s*=\s*([0-9.]+)/i) ||
-                        text.match(/filament weight.*:\s*([0-9.]+)\s*g/i);
-    if (weightMatch) weightG = parseFloat(weightMatch[1]);
+    // Line-by-line parsing prevents multiline regex matching errors
+    const lines = text.split(/\r?\n/);
 
-    // Time matchers
-    const timeMatch = text.match(/estimated printing time.*=\s*([0-9h\s m s]+)/i) ||
-                      text.match(/model printing time\s*=\s*([0-9h\s m s]+)/i) ||
-                      text.match(/total printing time\s*=\s*([0-9h\s m s]+)/i);
+    for (const line of lines) {
+      const trimmed = line.trim();
 
-    if (timeMatch) {
-      const timeStr = timeMatch[1];
-      const hMatch = timeStr.match(/([0-9]+)\s*h/);
-      const mMatch = timeStr.match(/([0-9]+)\s*m/);
-      const sMatch = timeStr.match(/([0-9]+)\s*s/);
-      
-      const h = hMatch ? parseInt(hMatch[1]) : 0;
-      const m = mMatch ? parseInt(mMatch[1]) : 0;
-      const s = sMatch ? parseInt(sMatch[1]) : 0;
+      // Extract Filament Weight [g]
+      if (weightG === null && /filament weight|filament_used_g|used_g|filament used|total filament weight/i.test(trimmed)) {
+        const weightMatch = trimmed.match(/(?:[=:]|\s)\s*([0-9.]+)\s*g?/i);
+        if (weightMatch && parseFloat(weightMatch[1]) > 0) {
+          weightG = parseFloat(weightMatch[1]);
+        }
+      }
 
-      timeSec = (h * 3600) + (m * 60) + s;
-    } else {
-      // Sec matcher: print_time = 6660
-      const secMatch = text.match(/print_time\s*=\s*([0-9.]+)/i);
-      if (secMatch) timeSec = parseFloat(secMatch[1]);
+      // Extract Printing Time (hours and minutes)
+      if (timeSec === null && /estimated printing time|model printing time|total printing time|total estimated time/i.test(trimmed)) {
+        const hMatch = trimmed.match(/([0-9]+)\s*h/i);
+        const mMatch = trimmed.match(/([0-9]+)\s*m/i);
+        const sMatch = trimmed.match(/([0-9]+)\s*s/i);
+
+        const h = hMatch ? parseInt(hMatch[1]) : 0;
+        const m = mMatch ? parseInt(mMatch[1]) : 0;
+        const s = sMatch ? parseInt(sMatch[1]) : 0;
+
+        const totalS = (h * 3600) + (m * 60) + s;
+        if (totalS > 0) {
+          timeSec = totalS;
+        }
+      } else if (timeSec === null && /(?:print_time|total_time|prediction|TIME:)\s*[:=]?\s*([0-9]+)/i.test(trimmed)) {
+        const secMatch = trimmed.match(/(?:print_time|total_time|prediction|TIME:)\s*[:=]?\s*([0-9]+)/i);
+        if (secMatch && parseInt(secMatch[1]) > 0) {
+          timeSec = parseInt(secMatch[1]);
+        }
+      }
+
+      if (weightG !== null && timeSec !== null) break;
     }
 
     return { weightG, timeSec };
