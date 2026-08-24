@@ -693,6 +693,33 @@ Dúvidas ou alterações? Responda a esta mensagem!
     el.btnClearFinanceHistory.addEventListener('click', clearFinanceHistory);
   }
 
+  // Reset Form Action
+  function resetForm() {
+    el.projectName.value = "Novo Projeto 3D";
+    el.filamentWeight.value = "0.00";
+    el.printHours.value = "0";
+    el.printMinutes.value = "0";
+
+    el.laborPrepTime.value = "15";
+    el.laborPostTime.value = "10";
+    el.extrasCost.value = "0.00";
+
+    const fileDebugBox = document.getElementById('file-debug-box');
+    if (fileDebugBox) fileDebugBox.classList.add('hidden');
+
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.value = '';
+
+    showToast("Dados do projeto zerados!");
+    calculateAll();
+  }
+
+  const btnResetForm = document.getElementById('btn-reset-form');
+  if (btnResetForm) btnResetForm.addEventListener('click', resetForm);
+
+  const btnResetFormTop = document.getElementById('btn-reset-form-top');
+  if (btnResetFormTop) btnResetFormTop.addEventListener('click', resetForm);
+
   // --- Toast Notification ---
   function showToast(msg) {
     el.toastMessage.textContent = msg;

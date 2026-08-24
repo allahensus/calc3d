@@ -91,7 +91,13 @@
             <i data-lucide="layers" class="icon-primary"></i>
             <h2>1. Projeto & Filamento</h2>
           </div>
-          <span class="tag">Fatiador</span>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="btn-reset-form-top" class="btn btn-secondary btn-sm" title="Zerar Formulário">
+              <i data-lucide="rotate-ccw"></i>
+              Limpar Dados
+            </button>
+            <span class="tag">Fatiador</span>
+          </div>
         </div>
 
         <div class="card-body">
@@ -618,7 +624,7 @@
         </div>
       </div>
 
-      <!-- Action Buttons: WhatsApp & PDF Export & Register Sale -->
+      <!-- Action Buttons: WhatsApp & PDF Export & Register Sale & Clear -->
       <div class="actions-row">
         <button id="btn-open-quote-modal" class="btn btn-primary btn-lg">
           <i data-lucide="send"></i>
@@ -631,6 +637,10 @@
         <button id="btn-save-project" class="btn btn-secondary btn-lg">
           <i data-lucide="save"></i>
           Salvar
+        </button>
+        <button id="btn-reset-form" class="btn btn-secondary btn-lg" title="Zerar todos os campos">
+          <i data-lucide="rotate-ccw"></i>
+          Limpar
         </button>
       </div>
 
@@ -823,6 +833,6 @@
     <p>Calculadora de Impressão 3D Pro &bull; Desenvolvido para <strong>Bambu Lab A1 Combo</strong> & Fatiadores 3D</p>
   </footer>
 
-  <script src="app.js?v=2.1.0"></script>
+  <script src="app.js?v=2.2.0"></script>
 </body>
 </html>
