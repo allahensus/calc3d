@@ -896,7 +896,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
 
   async function parse3MFFile(file) {
     const fileName = file.name;
-    const cleanName = fileName.replace(/\.(3mf|gcode|gcode\.gz)$/i, '');
+    const cleanName = fileName.replace(/\.(3mf|gcode|gcode[0-9]*|gcode\.gz)$/i, '');
     el.projectName.value = cleanName;
 
     // Reset values to zero before importing new file
@@ -904,14 +904,16 @@ Dúvidas ou alterações? Responda a esta mensagem!
     el.printHours.value = '0';
     el.printMinutes.value = '0';
 
-    if (fileName.toLowerCase().endsWith('.3mf') && window.JSZip) {
+    let totalWeightG = 0;
+    let totalTimeSec = 0;
+    let foundData = false;
+
+    // Attempt 1: Try reading as JSZip container first (for .3mf files regardless of extension)
+    if (window.JSZip) {
       try {
         const zip = await JSZip.loadAsync(file);
-        let totalWeightG = 0;
-        let totalTimeSec = 0;
-        let foundData = false;
-
-        // 1. Inspect slice_info.config or any .config / .xml file
+        
+        // Inspect slice_info.config or any .config / .xml / .json file in zip
         const configFiles = Object.keys(zip.files).filter(path => 
           /slice_info/i.test(path) || /plate_/i.test(path) || /\.config$/i.test(path) || /\.json$/i.test(path)
         );
@@ -921,36 +923,25 @@ Dúvidas ou alterações? Responda a esta mensagem!
           if (!zipObj) continue;
           const content = await zipObj.async('string');
 
-          // Parse sum of used_g in Bambu Studio XML: <filament id="1" used_g="84.30" />
+          // Sum used_g in Bambu Studio XML: <filament id="1" used_g="84.30" />
           const filamentGMatches = [...content.matchAll(/used_g=["']([0-9.]+)["']/gi)];
           if (filamentGMatches.length > 0) {
             const sumG = filamentGMatches.reduce((acc, m) => acc + parseFloat(m[1]), 0);
-            if (sumG > 0) {
-              totalWeightG = sumG;
-              foundData = true;
-            }
+            if (sumG > 0) { totalWeightG = sumG; foundData = true; }
           }
 
-          // Parse weight attribute: <metadata key="weight" value="84.30"/>
           if (!totalWeightG) {
             const weightAttr = content.match(/key=["']weight["']\s+value=["']([0-9.]+)["']/i) ||
                                content.match(/weight[_\s]*g?["\s:=]+([0-9.]+)/i);
-            if (weightAttr) {
-              totalWeightG = parseFloat(weightAttr[1]);
-              foundData = true;
-            }
+            if (weightAttr) { totalWeightG = parseFloat(weightAttr[1]); foundData = true; }
           }
 
-          // Parse prediction time (seconds): <metadata key="prediction" value="6660"/>
           const predAttr = content.match(/key=["']prediction["']\s+value=["']([0-9.]+)["']/i) ||
                            content.match(/prediction["\s:=]+([0-9.]+)/i);
-          if (predAttr) {
-            totalTimeSec = parseFloat(predAttr[1]);
-            foundData = true;
-          }
+          if (predAttr) { totalTimeSec = parseFloat(predAttr[1]); foundData = true; }
         }
 
-        // 2. If metadata not found or incomplete, scan G-code files inside the zip
+        // If missing weight or time, scan G-code files inside zip
         if (!totalWeightG || !totalTimeSec) {
           const gcodeFiles = Object.keys(zip.files).filter(path => /\.gcode$/i.test(path));
           for (const gPath of gcodeFiles) {
@@ -961,46 +952,51 @@ Dúvidas ou alterações? Responda a esta mensagem!
           }
         }
 
-        // Apply results to inputs
-        el.filamentWeight.value = totalWeightG > 0 ? totalWeightG.toFixed(2) : '0.00';
-        if (totalTimeSec > 0) {
-          const h = Math.floor(totalTimeSec / 3600);
-          const m = Math.round((totalTimeSec % 3600) / 60);
-          el.printHours.value = h;
-          el.printMinutes.value = m;
-        } else {
-          el.printHours.value = '0';
-          el.printMinutes.value = '0';
-        }
+        applyParsedResults(totalWeightG, totalTimeSec, cleanName, foundData);
+        return;
 
-        if (foundData) {
-          showToast(`Projeto Bambu "${cleanName}" importado!`);
-        } else {
-          showToast('⚠️ Arquivo 3MF sem fatiamento prévio. Fatie no Bambu Studio e clique em "Exportar fatiado".');
-        }
-        calculateAll();
-
-      } catch (err) {
-        console.error('Erro ao processar 3MF:', err);
-        showToast('Erro ao ler o arquivo 3MF. Verifique o formato.');
+      } catch (zipErr) {
+        // Not a zip archive, fallback to plain text G-code reader
       }
-    } else if (fileName.toLowerCase().endsWith('.gcode')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const parsed = parseGcodeTextContent(e.target.result);
-        el.filamentWeight.value = parsed.weightG ? parsed.weightG.toFixed(2) : '0.00';
-        if (parsed.timeSec && parsed.timeSec > 0) {
-          el.printHours.value = Math.floor(parsed.timeSec / 3600);
-          el.printMinutes.value = Math.round((parsed.timeSec % 3600) / 60);
-        } else {
-          el.printHours.value = '0';
-          el.printMinutes.value = '0';
-        }
-        showToast('G-code importado com sucesso!');
-        calculateAll();
-      };
-      reader.readAsText(file);
     }
+
+    // Attempt 2: Read as plain text G-code file
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const parsed = parseGcodeTextContent(e.target.result);
+      applyParsedResults(parsed.weightG, parsed.timeSec, cleanName, (parsed.weightG > 0 || parsed.timeSec > 0));
+    };
+    reader.readAsText(file);
+  }
+
+  function applyParsedResults(weightG, timeSec, cleanName, foundData) {
+    if (weightG && weightG > 0) {
+      el.filamentWeight.value = weightG.toFixed(2);
+    } else {
+      el.filamentWeight.value = '0.00';
+    }
+
+    if (timeSec && timeSec > 0) {
+      const h = Math.floor(timeSec / 3600);
+      const m = Math.round((timeSec % 3600) / 60);
+      el.printHours.value = h;
+      el.printMinutes.value = m;
+    } else {
+      el.printHours.value = '0';
+      el.printMinutes.value = '0';
+    }
+
+    if (foundData) {
+      const hDisp = Math.floor((timeSec || 0) / 3600);
+      const mDisp = Math.round(((timeSec || 0) % 3600) / 60);
+      const timeDisplay = timeSec > 0 ? `${hDisp}h ${mDisp}m` : 'tempo N/D';
+      const weightDisplay = weightG > 0 ? `${weightG.toFixed(1)}g` : 'peso N/D';
+      showToast(`" ${cleanName} " importado com sucesso: ${weightDisplay} | ${timeDisplay}`);
+    } else {
+      showToast(`⚠️ Não foi possível extrair tempo/peso de "${cleanName}". Verifique o fatiamento.`);
+    }
+
+    calculateAll();
   }
 
   function parseGcodeTextContent(text) {
@@ -1010,19 +1006,20 @@ Dúvidas ou alterações? Responda a esta mensagem!
     // Line-by-line parsing prevents multiline regex matching errors
     const lines = text.split(/\r?\n/);
 
-    for (const line of lines) {
-      const trimmed = line.trim();
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!trimmed) continue;
 
-      // Extract Filament Weight [g]
-      if (weightG === null && /filament weight|filament_used_g|used_g|filament used|total filament weight/i.test(trimmed)) {
+      // 1. Extract Filament Weight [g] (English & Portuguese)
+      if (weightG === null && /filament weight|filament_used_g|used_g|filament used|total filament weight|peso do filamento|peso total/i.test(trimmed)) {
         const weightMatch = trimmed.match(/(?:[=:]|\s)\s*([0-9.]+)\s*g?/i);
         if (weightMatch && parseFloat(weightMatch[1]) > 0) {
           weightG = parseFloat(weightMatch[1]);
         }
       }
 
-      // Extract Printing Time (hours and minutes)
-      if (timeSec === null && /estimated printing time|model printing time|total printing time|total estimated time/i.test(trimmed)) {
+      // 2. Extract Printing Time (hours, minutes, seconds)
+      if (timeSec === null && /estimated printing time|model printing time|total printing time|total estimated time|tempo de impressão|tempo total|tempo do modelo/i.test(trimmed)) {
         const hMatch = trimmed.match(/([0-9]+)\s*h/i);
         const mMatch = trimmed.match(/([0-9]+)\s*m/i);
         const sMatch = trimmed.match(/([0-9]+)\s*s/i);
@@ -1039,6 +1036,11 @@ Dúvidas ou alterações? Responda a esta mensagem!
         const secMatch = trimmed.match(/(?:print_time|total_time|prediction|TIME:)\s*[:=]?\s*([0-9]+)/i);
         if (secMatch && parseInt(secMatch[1]) > 0) {
           timeSec = parseInt(secMatch[1]);
+        }
+      } else if (timeSec === null && /(?:time|build time|tempo)[^0-9]*([0-9]{1,2}):([0-9]{2}):([0-9]{2})/i.test(trimmed)) {
+        const hhmmss = trimmed.match(/(?:time|build time|tempo)[^0-9]*([0-9]{1,2}):([0-9]{2}):([0-9]{2})/i);
+        if (hhmmss) {
+          timeSec = (parseInt(hhmmss[1]) * 3600) + (parseInt(hhmmss[2]) * 60) + parseInt(hhmmss[3]);
         }
       }
 
