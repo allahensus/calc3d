@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Impressão 3D Pro | Bambu Lab A1 & Precificação</title>
+  <meta name="description" content="Calculadora profissional de custos, precificação e margem de lucro para peças impressas em 3D. Suporte a Bambu Lab A1, cálculo de conta de luz e orçamentos.">
+  
+  <!-- Fontes Google: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- JSZip para Leitura de arquivos 3MF da Bambu Lab -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Header / App Bar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <i data-lucide="box" class="brand-icon"></i>
+          <span class="badge-3d">3D</span>
+        </div>
+        <div>
+          <h1>Calculadora Impressão 3D <span class="badge-pro">PRO</span></h1>
+          <p class="subtitle">Bambu Lab A1 Combo & Gestão Financeira de Produção</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-load-photo-preset" class="btn btn-preset pulse-glow">
+          <i data-lucide="zap"></i>
+          Carregar Dados da Foto (Bambu A1)
+        </button>
+        <button id="btn-toggle-theme" class="btn btn-icon" title="Alternar Tema">
+          <i data-lucide="moon" id="theme-icon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="main-layout">
+    
+    <!-- Left Column: Input Form Sections -->
+    <section class="inputs-column">
+
+      <!-- Preset Bar -->
+      <div class="card preset-card">
+        <div class="preset-header">
+          <i data-lucide="sparkles" class="text-accent"></i>
+          <span>Presets Rápidos:</span>
+        </div>
+        <div class="preset-buttons">
+          <button class="chip-btn active" data-preset="bambu-a1">Bambu A1 Combo</button>
+          <button class="chip-btn" data-preset="bambu-mini">Bambu A1 Mini</button>
+          <button class="chip-btn" data-preset="bambu-p1s">Bambu P1S / X1C</button>
+          <button class="chip-btn" data-preset="ender-3">Ender 3 / V3</button>
+        </div>
+      </div>
+
+      <!-- Section 1: Dados do Fatiador (Impressão) -->
+      <div class="card accordion active">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="layers" class="icon-primary"></i>
+            <h2>1. Projeto & Filamento</h2>
+          </div>
+          <span class="tag">Fatiador</span>
+        </div>
+
+        <div class="card-body">
+          <!-- Dropzone para Importar 3MF do Bambu Studio -->
+          <div class="dropzone" id="file-dropzone">
+            <i data-lucide="upload-cloud" class="dropzone-icon"></i>
+            <div class="dropzone-text">
+              <strong>Arraste seu arquivo .3MF ou .gcode do Bambu Studio aqui</strong>
+              <span>ou clique para selecionar no seu computador</span>
+            </div>
+            <input type="file" id="file-input" accept=".3mf,.gcode,.gcode.gz" class="hidden-input">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group span-2">
+              <label for="project-name">Nome do Projeto / Peça</label>
+              <div class="input-wrapper">
+                <i data-lucide="tag"></i>
+                <input type="text" id="project-name" value="Vaso Geométrico Espiral" placeholder="Ex: Chaveiro Personalizado">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="filament-weight">Peso do Filamento (g)</label>
+              <div class="input-wrapper">
+                <i data-lucide="scale"></i>
+                <input type="number" id="filament-weight" value="84.30" step="0.1" min="0">
+                <span class="unit">g</span>
+              </div>
+              <small class="help-text">Da slicer (ex: 84.30g)</small>
+            </div>
+
+            <div class="form-group">
+              <label for="filament-cost">Preço do Filamento (R$/kg)</label>
+              <div class="input-wrapper">
+                <i data-lucide="dollar-sign"></i>
+                <input type="number" id="filament-cost" value="100.00" step="1" min="0">
+                <span class="unit">R$/kg</span>
+              </div>
+              <small class="help-text">PLA, PETG, ABS, etc.</small>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="print-hours">Tempo de Impressão (Horas)</label>
+              <div class="input-wrapper">
+                <i data-lucide="clock"></i>
+                <input type="number" id="print-hours" value="1" min="0">
+                <span class="unit">horas</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="print-minutes">Minutos de Impressão</label>
+              <div class="input-wrapper">
+                <i data-lucide="timer"></i>
+                <input type="number" id="print-minutes" value="51" min="0" max="59">
+                <span class="unit">min</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Energia Elétrica (Conta de Luz) -->
+      <div class="card accordion active">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="zap" class="icon-warning"></i>
+            <h2>2. Consumo de Energia</h2>
+          </div>
+          <span class="tag tag-amber">Conta de Luz</span>
+        </div>
+
+        <div class="card-body">
+          <!-- Toggle Modo de Energia -->
+          <div class="tab-switch">
+            <button class="tab-btn active" id="tab-tariff-direct">Tarifa Direta (R$/kWh)</button>
+            <button class="tab-btn" id="tab-tariff-bill">Calcular da Fatura</button>
+          </div>
+
+          <!-- Modos de Tarifa -->
+          <div id="tariff-direct-container" class="tariff-section">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="kwh-rate">Valor do kWh (R$)</label>
+                <div class="input-wrapper">
+                  <i data-lucide="receipt"></i>
+                  <input type="number" id="kwh-rate" value="0.973" step="0.001" min="0">
+                  <span class="unit">R$/kWh</span>
+                </div>
+                <small class="help-text">Extraído da sua conta (R$ 142,04 / 146 kWh)</small>
+              </div>
+
+              <div class="form-group">
+                <label for="printer-power">Potência Média da Impressora (Watts)</label>
+                <div class="input-wrapper">
+                  <i data-lucide="cpu"></i>
+                  <input type="number" id="printer-power" value="120" step="5" min="1">
+                  <span class="unit">W</span>
+                </div>
+                <small class="help-text">Bambu Lab A1 Combo ~ 120W</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modo Fatura de Energia Integrado -->
+          <div id="tariff-bill-container" class="tariff-section hidden">
+            <div class="bill-box">
+              <div class="bill-header">
+                <i data-lucide="file-text"></i>
+                <span>Calculadora com Base na sua Conta de Luz</span>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="bill-total-value">Valor Total da Fatura (R$)</label>
+                  <div class="input-wrapper">
+                    <i data-lucide="dollar-sign"></i>
+                    <input type="number" id="bill-total-value" value="142.04" step="0.01">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="bill-total-kwh">Consumo Medido (kWh)</label>
+                  <div class="input-wrapper">
+                    <i data-lucide="activity"></i>
+                    <input type="number" id="bill-total-kwh" value="146.0" step="0.1">
+                  </div>
+                </div>
+              </div>
+              <div class="bill-result">
+                <span>Tarifa Resultante com Tributos & Bandeira:</span>
+                <strong id="calculated-kwh-badge">R$ 0,973 / kWh</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Depreciação de Máquina e Mão de Obra -->
+      <div class="card accordion active">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="wrench" class="icon-info"></i>
+            <h2>3. Máquina, Manutenção & Mão de Obra</h2>
+          </div>
+          <span class="tag tag-cyan">Operacional</span>
+        </div>
+
+        <div class="card-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="printer-price">Preço da Impressora (R$)</label>
+              <div class="input-wrapper">
+                <i data-lucide="shopping-bag"></i>
+                <input type="number" id="printer-price" value="4500.00" step="100">
+                <span class="unit">R$</span>
+              </div>
+              <small class="help-text">Bambu A1 Combo ~ R$ 4.500</small>
+            </div>
+
+            <div class="form-group">
+              <label for="printer-lifespan">Vida Útil Estimada (Horas)</label>
+              <div class="input-wrapper">
+                <i data-lucide="hourglass"></i>
+                <input type="number" id="printer-lifespan" value="5000" step="500">
+                <span class="unit">h</span>
+              </div>
+              <small class="help-text">Padrao 5.000h (Depreciação R$ 0,90/h)</small>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="maintenance-rate">Manutenção & Bicos (R$/h)</label>
+              <div class="input-wrapper">
+                <i data-lucide="settings"></i>
+                <input type="number" id="maintenance-rate" value="1.00" step="0.1">
+                <span class="unit">R$/h</span>
+              </div>
+              <small class="help-text">Placa PEI, bicos, correias, lubrificação</small>
+            </div>
+
+            <div class="form-group">
+              <label for="hourly-labor-rate">Sua Mão de Obra (R$/hora)</label>
+              <div class="input-wrapper">
+                <i data-lucide="user-check"></i>
+                <input type="number" id="hourly-labor-rate" value="30.00" step="5">
+                <span class="unit">R$/h</span>
+              </div>
+              <small class="help-text">Valor hora do seu trabalho</small>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="labor-prep-time">Tempo de Preparo / Fatiamento</label>
+              <div class="input-wrapper">
+                <i data-lucide="sliders"></i>
+                <input type="number" id="labor-prep-time" value="15" step="5">
+                <span class="unit">min</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="labor-post-time">Tempo de Pós-Processamento</label>
+              <div class="input-wrapper">
+                <i data-lucide="scissors"></i>
+                <input type="number" id="labor-post-time" value="10" step="5">
+                <span class="unit">min</span>
+              </div>
+              <small class="help-text">Remoção de suportes, lixas, pintura</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Adicionais, Perdas & Taxas de Venda -->
+      <div class="card accordion active">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="package-plus" class="icon-success"></i>
+            <h2>4. Extras, Risco de Falha & Plataformas</h2>
+          </div>
+          <span class="tag tag-emerald">Taxas & Extras</span>
+        </div>
+
+        <div class="card-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="extras-cost">Insumos Extras & Embalagem (R$)</label>
+              <div class="input-wrapper">
+                <i data-lucide="box"></i>
+                <input type="number" id="extras-cost" value="3.50" step="0.5">
+                <span class="unit">R$</span>
+              </div>
+              <small class="help-text">Caixa, saco bolha, chaveiro, ímãs, parafusos</small>
+            </div>
+
+            <div class="form-group">
+              <label for="failure-risk-pct">Margem de Falha / Perdas (%)</label>
+              <div class="input-wrapper">
+                <i data-lucide="alert-triangle"></i>
+                <input type="number" id="failure-risk-pct" value="7" step="1" min="0" max="50">
+                <span class="unit">%</span>
+              </div>
+              <small class="help-text">Reserva para impressões com erro/desperdício</small>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="platform-preset">Plataforma de Venda</label>
+              <div class="input-wrapper">
+                <i data-lucide="shopping-cart"></i>
+                <select id="platform-preset">
+                  <option value="0">Venda Direta / Pix (0%)</option>
+                  <option value="14">Shopee Padrão (14%)</option>
+                  <option value="19">Mercado Livre Clássico (19%)</option>
+                  <option value="12">Elo7 (12%)</option>
+                  <option value="custom">Outra Taxa Customizada</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="platform-fee-pct">Taxa da Plataforma (%)</label>
+              <div class="input-wrapper">
+                <i data-lucide="percent"></i>
+                <input type="number" id="platform-fee-pct" value="0" step="0.5" min="0" max="50">
+                <span class="unit">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Right Column: Results & Analytics -->
+    <section class="results-column">
+
+      <!-- Master Result Banner -->
+      <div class="card result-hero-card">
+        <div class="hero-header">
+          <span>SUGESTÃO DE PREÇO FINAL</span>
+          <span class="badge-accent" id="pricing-mode-label">Margem %</span>
+        </div>
+
+        <div class="hero-price-display">
+          <span class="currency">R$</span>
+          <strong id="final-selling-price">0,00</strong>
+        </div>
+
+        <div class="hero-stats-grid">
+          <div class="hero-stat">
+            <span class="stat-label">Custo Total de Produção</span>
+            <span class="stat-value text-muted" id="total-production-cost">R$ 0,00</span>
+          </div>
+
+          <div class="hero-stat">
+            <span class="stat-label">Lucro Líquido Real</span>
+            <span class="stat-value text-success" id="net-profit-value">R$ 0,00</span>
+          </div>
+
+          <div class="hero-stat">
+            <span class="stat-label">Margem Líquida</span>
+            <span class="stat-value text-accent" id="net-profit-margin">0%</span>
+          </div>
+        </div>
+
+        <!-- Quick Strategy Selector -->
+        <div class="strategy-picker">
+          <label>Estratégia de Precificação:</label>
+          <div class="strategy-buttons">
+            <button class="strategy-btn active" data-strategy="margin">Lucro Desejado %</button>
+            <button class="strategy-btn" data-strategy="multiplier">Multiplicador (Markup)</button>
+            <button class="strategy-btn" data-strategy="target-price">Preço Fixo Desejado</button>
+          </div>
+        </div>
+
+        <!-- Strategy Options Inputs -->
+        <div class="strategy-controls">
+          <!-- Option A: Desired Margin % -->
+          <div id="strategy-margin-input" class="strategy-input-group">
+            <label for="desired-margin-pct">Margem de Lucro Desejada:</label>
+            <div class="slider-input-group">
+              <input type="range" id="margin-slider" min="10" max="300" step="5" value="100">
+              <div class="input-wrapper compact">
+                <input type="number" id="desired-margin-pct" value="100" step="5">
+                <span class="unit">%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Option B: Multiplier -->
+          <div id="strategy-multiplier-input" class="strategy-input-group hidden">
+            <label>Multiplicador de Custo:</label>
+            <div class="multiplier-chips">
+              <button class="chip-mult" data-mult="2">2x (Custo + 100%)</button>
+              <button class="chip-mult active" data-mult="3">3x (Recomendado)</button>
+              <button class="chip-mult" data-mult="4">4x (Alto Valor)</button>
+              <button class="chip-mult" data-mult="5">5x (Exclusivo)</button>
+            </div>
+          </div>
+
+          <!-- Option C: Fixed Price Target -->
+          <div id="strategy-fixed-input" class="strategy-input-group hidden">
+            <label for="custom-selling-price">Quanto você quer cobrar (R$)?</label>
+            <div class="input-wrapper">
+              <i data-lucide="tag"></i>
+              <input type="number" id="custom-selling-price" value="60.00" step="1">
+              <span class="unit">R$</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost Breakdown Chart & Details -->
+      <div class="card breakdown-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="pie-chart" class="icon-primary"></i>
+            <h2>Decomposição de Custos & Lucro</h2>
+          </div>
+        </div>
+
+        <div class="breakdown-grid">
+          <!-- Donut SVG Chart -->
+          <div class="chart-container">
+            <svg viewBox="0 0 100 100" id="cost-donut-chart">
+              <!-- Rendered dynamically by JS -->
+            </svg>
+            <div class="chart-center-text">
+              <span class="chart-center-title">CUSTO</span>
+              <strong class="chart-center-val" id="chart-center-cost">R$ 0</strong>
+            </div>
+          </div>
+
+          <!-- Legend & Detailed Table -->
+          <div class="cost-legend">
+            <div class="legend-item">
+              <span class="dot dot-filament"></span>
+              <span class="legend-name">Filamento (<span id="summary-weight">84.3</span>g)</span>
+              <strong class="legend-val" id="cost-filament-val">R$ 0,00</strong>
+            </div>
+
+            <div class="legend-item">
+              <span class="dot dot-energy"></span>
+              <span class="legend-name">Energia Elétrica</span>
+              <strong class="legend-val" id="cost-energy-val">R$ 0,00</strong>
+            </div>
+
+            <div class="legend-item">
+              <span class="dot dot-machine"></span>
+              <span class="legend-name">Depreciação + Manutenção</span>
+              <strong class="legend-val" id="cost-machine-val">R$ 0,00</strong>
+            </div>
+
+            <div class="legend-item">
+              <span class="dot dot-labor"></span>
+              <span class="legend-name">Mão de Obra</span>
+              <strong class="legend-val" id="cost-labor-val">R$ 0,00</strong>
+            </div>
+
+            <div class="legend-item">
+              <span class="dot dot-extras"></span>
+              <span class="legend-name">Extras + Taxa de Falhas</span>
+              <strong class="legend-val" id="cost-extras-val">R$ 0,00</strong>
+            </div>
+
+            <div class="legend-item legend-item-fee hidden" id="legend-fee-row">
+              <span class="dot dot-fee"></span>
+              <span class="legend-name">Taxa de Plataforma</span>
+              <strong class="legend-val" id="cost-fee-val">R$ 0,00</strong>
+            </div>
+
+            <div class="legend-item legend-item-profit">
+              <span class="dot dot-profit"></span>
+              <span class="legend-name">Lucro Líquido</span>
+              <strong class="legend-val text-success" id="cost-profit-val">R$ 0,00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela de Preços para Atacado / Lote -->
+      <div class="card wholesale-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="layers" class="icon-warning"></i>
+            <h2>Tabela de Atacado & Volume (Economia de Escala)</h2>
+          </div>
+        </div>
+
+        <p class="section-desc">Na produção em lote, o tempo de fatiamento e preparação é diluído por unidade:</p>
+
+        <div class="table-responsive">
+          <table class="wholesale-table">
+            <thead>
+              <tr>
+                <th>Qtd.</th>
+                <th>Custo Un.</th>
+                <th>Preço Un. Sugerido</th>
+                <th>Preço Total Lote</th>
+                <th>Lucro Total</th>
+              </tr>
+            </thead>
+            <tbody id="wholesale-table-body">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action Buttons: WhatsApp & PDF Export -->
+      <div class="actions-row">
+        <button id="btn-open-quote-modal" class="btn btn-primary btn-block btn-lg">
+          <i data-lucide="send"></i>
+          Gerar Orçamento p/ Cliente (WhatsApp / PDF)
+        </button>
+        <button id="btn-save-project" class="btn btn-secondary btn-lg">
+          <i data-lucide="save"></i>
+          Salvar
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal Orçamento para WhatsApp / PDF -->
+  <div class="modal-overlay hidden" id="quote-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="file-text" class="text-accent"></i>
+          <h3>Orçamento de Impressão 3D</h3>
+        </div>
+        <button class="btn-close" id="btn-close-modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-intro">Copie a mensagem pré-formatada para enviar no WhatsApp ou imprima como recibo/PDF:</p>
+
+        <div class="quote-preview-box" id="quote-text-box" contenteditable="true">
+          <!-- Generated via JS -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-copy-whatsapp" class="btn btn-whatsapp">
+          <i data-lucide="message-square"></i>
+          Copiar p/ WhatsApp
+        </button>
+        <button id="btn-print-pdf" class="btn btn-secondary">
+          <i data-lucide="printer"></i>
+          Imprimir / Baixar PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast hidden" id="toast-notification">
+    <i data-lucide="check-circle" class="toast-icon"></i>
+    <span id="toast-message">Orçamento copiado com sucesso!</span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>Calculadora de Impressão 3D Pro &bull; Desenvolvido para <strong>Bambu Lab A1 Combo</strong> & Fatiadores 3D</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
