@@ -56,6 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
     totalProductionCost: document.getElementById('total-production-cost'),
     netProfitValue: document.getElementById('net-profit-value'),
     netProfitMargin: document.getElementById('net-profit-margin'),
+    mobileStickyPrice: document.getElementById('mobile-sticky-price'),
+
+    // Displays: Financial Cents & Monthly Goal
+    centsAllocationList: document.getElementById('cents-allocation-list'),
+    monthlyIncomeGoal: document.getElementById('monthly-income-goal'),
+    goalUnitsMonthly: document.getElementById('goal-units-monthly'),
+    goalUnitsDaily: document.getElementById('goal-units-daily'),
+    goalGrossRevenue: document.getElementById('goal-gross-revenue'),
 
     // Displays: Cost Legend & Chart
     summaryWeight: document.getElementById('summary-weight'),
@@ -199,11 +207,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Update Main Displays
     el.finalSellingPrice.textContent = fmtNum(sellingPrice, 2);
+    if (el.mobileStickyPrice) el.mobileStickyPrice.textContent = `R$ ${fmtNum(sellingPrice, 2)}`;
     el.totalProductionCost.textContent = fmtCurrency(totalProductionCost);
     el.netProfitValue.textContent = fmtCurrency(netProfit);
     el.netProfitMargin.textContent = `${fmtNum(netMarginPct, 1)}%`;
 
-    // 5. Update Breakdown Legend Values
+    // 5. Render Financial Allocation ("Para onde vai cada R$ 1,00")
+    renderCentsAllocation({
+      costFilament,
+      costEnergy,
+      costMachineTotal,
+      costLabor,
+      costExtras: extras + costRisk,
+      platformFeeValue,
+      netProfit: Math.max(0, netProfit),
+      sellingPrice: Math.max(0.01, sellingPrice)
+    });
+
+    // 6. Render Monthly Income Goal Simulator
+    renderMonthlyGoal(netProfit, sellingPrice);
+
+    // 7. Update Breakdown Legend Values
     el.summaryWeight.textContent = fmtNum(weightG, 1);
     el.costFilamentVal.textContent = fmtCurrency(costFilament);
     el.costEnergyVal.textContent = fmtCurrency(costEnergy);
@@ -246,6 +270,70 @@ document.addEventListener('DOMContentLoaded', () => {
       sellingPriceOneUnit: sellingPrice,
       platformFeePct
     });
+  }
+
+  // --- Cents Allocation Renderer (Destinação do Dinheiro) ---
+  function renderCentsAllocation(data) {
+    if (!el.centsAllocationList) return;
+
+    const total = data.sellingPrice;
+    if (total <= 0) return;
+
+    const items = [
+      { name: '🥩 Filamento (Matéria-Prima)', val: data.costFilament, fillClass: 'fill-filament' },
+      { name: '⚡ Energia Elétrica', val: data.costEnergy, fillClass: 'fill-energy' },
+      { name: '🛠️ Fundo de Máquina & Bicos', val: data.costMachineTotal, fillClass: 'fill-machine' },
+      { name: '👷 Sua Mão de Obra (Pro-labore)', val: data.costLabor, fillClass: 'fill-labor' },
+      { name: '📦 Extras & Reserva de Risco', val: data.costExtras, fillClass: 'fill-extras' },
+      { name: '🛍️ Taxa da Plataforma', val: data.platformFeeValue, fillClass: 'fill-fee' },
+      { name: '🚀 LUCRO LÍQUIDO DA EMPRESA', val: data.netProfit, fillClass: 'fill-profit', highlight: true }
+    ];
+
+    let html = '';
+
+    items.forEach(item => {
+      if (item.val <= 0) return;
+      const pct = (item.val / total) * 100;
+      const valPer100 = (pct).toFixed(2); // In R$ per R$ 100 sold
+
+      html += `
+        <div class="cents-item">
+          <div class="cents-label-row">
+            <span class="cents-name">${item.name}</span>
+            <span class="cents-val ${item.highlight ? 'text-success' : ''}">
+              ${fmtCurrency(item.val)} (${fmtNum(pct, 1)}%)
+            </span>
+          </div>
+          <div class="cents-progress-bg">
+            <div class="cents-progress-fill ${item.fillClass}" style="width: ${Math.min(100, Math.max(2, pct))}%"></div>
+          </div>
+        </div>
+      `;
+    });
+
+    el.centsAllocationList.innerHTML = html;
+  }
+
+  // --- Monthly Goal Simulator ---
+  function renderMonthlyGoal(netProfitPerUnit, sellingPricePerUnit) {
+    if (!el.monthlyIncomeGoal) return;
+
+    const targetGoal = parseFloat(el.monthlyIncomeGoal.value) || 0;
+
+    if (netProfitPerUnit <= 0 || targetGoal <= 0) {
+      el.goalUnitsMonthly.textContent = "0 peças / mês";
+      el.goalUnitsDaily.textContent = "0 peças / dia";
+      el.goalGrossRevenue.textContent = "R$ 0,00";
+      return;
+    }
+
+    const unitsMonthly = Math.ceil(targetGoal / netProfitPerUnit);
+    const unitsDaily = (unitsMonthly / 30).toFixed(1);
+    const grossRevenueMonthly = unitsMonthly * sellingPricePerUnit;
+
+    el.goalUnitsMonthly.textContent = `${unitsMonthly} peças / mês`;
+    el.goalUnitsDaily.textContent = `${unitsDaily} peças / dia (~${Math.ceil(unitsDaily)}/dia)`;
+    el.goalGrossRevenue.textContent = fmtCurrency(grossRevenueMonthly);
   }
 
   // --- Donut Chart SVG Renderer ---
@@ -441,7 +529,7 @@ Dúvidas ou alterações? Responda a esta mensagem!
     el.kwhRate, el.printerPower, el.billTotalValue, el.billTotalKwh,
     el.printerPrice, el.printerLifespan, el.maintenanceRate, el.hourlyLaborRate,
     el.laborPrepTime, el.laborPostTime, el.extrasCost, el.failureRiskPct,
-    el.platformFeePct, el.desiredMarginPct, el.customSellingPrice
+    el.platformFeePct, el.desiredMarginPct, el.customSellingPrice, el.monthlyIncomeGoal
   ];
 
   allInputs.forEach(input => {
@@ -449,6 +537,15 @@ Dúvidas ou alterações? Responda a esta mensagem!
       input.addEventListener('input', calculateAll);
     }
   });
+
+  // Mobile Sticky Bar Button Event
+  const btnMobileWhatsapp = document.getElementById('btn-mobile-whatsapp');
+  if (btnMobileWhatsapp) {
+    btnMobileWhatsapp.addEventListener('click', () => {
+      generateQuoteText();
+      el.quoteModal.classList.remove('hidden');
+    });
+  }
 
   // Margin Slider Sync
   el.marginSlider.addEventListener('input', (e) => {

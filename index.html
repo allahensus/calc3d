@@ -503,6 +503,57 @@
         </div>
       </div>
 
+      <!-- NEW: Painel "Para Onde Vai Cada Centavo?" (Gestão de Envelopes Financeiros) -->
+      <div class="card cents-allocation-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="wallet" class="icon-success"></i>
+            <h2>Para Onde Vai Cada R$ 1,00 Vendido?</h2>
+          </div>
+          <span class="tag tag-emerald">Gestão Financeira</span>
+        </div>
+
+        <p class="section-desc">Entenda a distribuição exata de cada R$ 100,00 que entra no seu caixa ao vender este produto:</p>
+
+        <div class="cents-bars-grid" id="cents-allocation-list">
+          <!-- Rendered dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- NEW: Simulador de Meta Mensal de Lucro -->
+      <div class="card monthly-goal-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="target" class="icon-warning"></i>
+            <h2>Simulador de Meta Mensal</h2>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="monthly-income-goal">Quanto você quer lucrar por mês (R$)?</label>
+          <div class="input-wrapper">
+            <i data-lucide="dollar-sign"></i>
+            <input type="number" id="monthly-income-goal" value="3000.00" step="500" inputmode="decimal">
+            <span class="unit">R$/mês</span>
+          </div>
+        </div>
+
+        <div class="goal-results-box">
+          <div class="goal-metric">
+            <span>Vendas Mensais Necessárias:</span>
+            <strong id="goal-units-monthly" class="text-accent">0 peças / mês</strong>
+          </div>
+          <div class="goal-metric">
+            <span>Meta Diária de Produção:</span>
+            <strong id="goal-units-daily" class="text-success">0 peças / dia</strong>
+          </div>
+          <div class="goal-metric">
+            <span>Faturamento Bruto Mensal:</span>
+            <strong id="goal-gross-revenue">R$ 0,00</strong>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabela de Preços para Atacado / Lote -->
       <div class="card wholesale-card">
         <div class="card-header">
@@ -584,6 +635,18 @@
   <div class="toast hidden" id="toast-notification">
     <i data-lucide="check-circle" class="toast-icon"></i>
     <span id="toast-message">Orçamento copiado com sucesso!</span>
+  </div>
+
+  <!-- Mobile Bottom Sticky Bar -->
+  <div class="mobile-sticky-bar">
+    <div class="mobile-sticky-info">
+      <span class="mobile-sticky-label">Preço Sugerido</span>
+      <strong id="mobile-sticky-price" class="mobile-sticky-value">R$ 0,00</strong>
+    </div>
+    <button id="btn-mobile-whatsapp" class="btn btn-whatsapp btn-sm">
+      <i data-lucide="message-square"></i>
+      Orçamento
+    </button>
   </div>
 
   <!-- Footer -->
