@@ -994,18 +994,18 @@ Dúvidas ou alterações? Responda a esta mensagem!
         // If metadata not found in slice_info, scan G-code files inside zip
         if (plates.length === 0) {
           const gcodeFiles = Object.keys(zip.files).filter(path => /\.gcode$/i.test(path));
-          gcodeFiles.forEach((gPath, idx) => {
-            zip.file(gPath).async('string').then(gContent => {
-              const parsed = parseGcodeTextContent(gContent);
-              if (parsed.weightG || parsed.timeSec) {
-                plates.push({
-                  index: idx + 1,
-                  name: `Mesa ${idx + 1}`,
-                  weightG: parsed.weightG || 0,
-                  timeSec: parsed.timeSec || 0
-                });
-              }
-            });
+          for (let idx = 0; idx < gcodeFiles.length; idx++) {
+            const gPath = gcodeFiles[idx];
+            const gContent = await zip.file(gPath).async('string');
+            const parsed = parseGcodeTextContent(gContent);
+            if (parsed.weightG || parsed.timeSec) {
+              plates.push({
+                index: idx + 1,
+                name: `Mesa ${idx + 1}`,
+                weightG: parsed.weightG || 0,
+                timeSec: parsed.timeSec || 0
+              });
+            }
           }
         }
 
