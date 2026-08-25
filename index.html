@@ -36,9 +36,13 @@
       </div>
 
       <div class="header-actions">
-        <button id="btn-load-photo-preset" class="btn btn-preset pulse-glow">
-          <i data-lucide="zap"></i>
-          Carregar Dados da Foto (Bambu A1)
+        <button id="btn-bambu-connect" class="btn btn-preset pulse-glow">
+          <i data-lucide="wifi"></i>
+          Conectar Bambu A1 (Wi-Fi)
+        </button>
+        <button id="btn-load-photo-preset" class="btn btn-secondary btn-sm">
+          <i data-lucide="camera"></i>
+          Dados da Foto
         </button>
         <button id="btn-toggle-theme" class="btn btn-icon" title="Alternar Tema">
           <i data-lucide="moon" id="theme-icon"></i>
@@ -101,6 +105,35 @@
         </div>
 
         <div class="card-body">
+          <!-- Widget de Status ao Vivo Bambu Lab A1 -->
+          <div id="bambu-live-widget" class="bambu-status-card">
+            <div class="bambu-status-header">
+              <div class="bambu-status-title">
+                <span class="status-indicator-dot" id="bambu-dot"></span>
+                <strong id="bambu-status-title-text">Bambu Lab A1 Combo (Modo LAN Wi-Fi)</strong>
+              </div>
+              <button id="btn-bambu-config" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 2px 8px;">
+                <i data-lucide="settings"></i> Configurar Conexão
+              </button>
+            </div>
+            <div class="bambu-status-body" id="bambu-status-body">
+              <div class="bambu-info-pill">
+                <span>Status: <strong id="bambu-live-state" class="text-muted">Aguardando Conexão...</strong></span>
+              </div>
+              <div class="bambu-info-pill hidden" id="bambu-live-job-pill">
+                <span>Projeto: <strong id="bambu-live-job-name">--</strong></span>
+              </div>
+              <div class="bambu-info-pill hidden" id="bambu-live-time-pill">
+                <span>Faltam: <strong id="bambu-live-time-rem">-- min</strong> (<span id="bambu-live-pct">0%</span>)</span>
+              </div>
+            </div>
+            <div class="bambu-status-actions hidden" id="bambu-status-actions">
+              <button id="btn-bambu-use-live-data" class="btn btn-preset btn-sm" style="width: 100%; font-weight: 600;">
+                <i data-lucide="zap"></i> Puxar Tempo e Filamento da Impressora para a Calculadora
+              </button>
+            </div>
+          </div>
+
           <!-- Dropzone para Importar 3MF do Bambu Studio -->
           <div class="dropzone" id="file-dropzone">
             <i data-lucide="upload-cloud" class="dropzone-icon"></i>
@@ -816,6 +849,60 @@
     </div>
   </div>
 
+  <!-- Modal Conexão Bambu Lab LAN (Wi-Fi) -->
+  <div class="modal-overlay hidden" id="modal-bambu-connect">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="wifi" class="text-accent"></i>
+          <h3>Conectar Impressora Bambu Lab (Rede LAN / Wi-Fi)</h3>
+        </div>
+        <button class="btn-close" id="btn-close-bambu-modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-intro">Conecte sua <strong>Bambu Lab A1 Combo</strong> diretamente pela rede local Wi-Fi para puxar o status e o progresso ao vivo:</p>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="bambu-ip">Endereço IP Local da Impressora</label>
+          <div class="input-wrapper">
+            <i data-lucide="globe"></i>
+            <input type="text" id="bambu-ip" placeholder="Ex: 192.168.1.150 ou 10.0.0.120" value="">
+          </div>
+          <small class="help-text">Encontrado na tela da A1 em: <strong>Configurações &gt; Rede &gt; IP</strong></small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="bambu-access-code">Código de Acesso (Access Code)</label>
+          <div class="input-wrapper">
+            <i data-lucide="key"></i>
+            <input type="password" id="bambu-access-code" placeholder="Código de 8 dígitos (ex: 12345678)" value="">
+          </div>
+          <small class="help-text">Encontrado na tela da A1 em: <strong>Configurações &gt; Rede &gt; Access Code</strong></small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="bambu-serial">Número de Série (SN) - Opcional</label>
+          <div class="input-wrapper">
+            <i data-lucide="hash"></i>
+            <input type="text" id="bambu-serial" placeholder="Ex: 0309... (Na etiqueta traseira da A1)" value="">
+          </div>
+        </div>
+
+        <div class="bambu-quick-presets" style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+          <button id="btn-test-bambu-conn" class="btn btn-primary btn-lg" style="flex: 1;">
+            <i data-lucide="zap"></i>
+            Salvar e Conectar Impressora
+          </button>
+          <button id="btn-demo-bambu-conn" class="btn btn-secondary btn-lg" title="Simular Conexão para Teste">
+            <i data-lucide="play-circle"></i>
+            Modo Simulação
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div class="toast hidden" id="toast-notification">
     <i data-lucide="check-circle" class="toast-icon"></i>
@@ -839,6 +926,6 @@
     <p>Calculadora de Impressão 3D Pro &bull; Desenvolvido para <strong>Bambu Lab A1 Combo</strong> & Fatiadores 3D</p>
   </footer>
 
-  <script src="app.js?v=2.5.0"></script>
+  <script src="app.js?v=3.0.0"></script>
 </body>
 </html>

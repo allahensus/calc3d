@@ -720,6 +720,181 @@ Dúvidas ou alterações? Responda a esta mensagem!
   const btnResetFormTop = document.getElementById('btn-reset-form-top');
   if (btnResetFormTop) btnResetFormTop.addEventListener('click', resetForm);
 
+  // --- Módulo Bambu Lab LAN Wi-Fi / Telemetria ao Vivo ---
+  const bambuState = {
+    ip: localStorage.getItem('calc3d_bambu_ip') || '',
+    accessCode: localStorage.getItem('calc3d_bambu_code') || '',
+    serial: localStorage.getItem('calc3d_bambu_sn') || '',
+    isConnected: false,
+    isSimulated: false,
+    status: 'OFFLINE',
+    currentJob: '',
+    progressPct: 0,
+    timeRemainingMin: 0,
+    filamentUsedG: 0,
+    simTimer: null
+  };
+
+  const modalBambuConnect = document.getElementById('modal-bambu-connect');
+  const btnBambuConnectHeader = document.getElementById('btn-bambu-connect');
+  const btnBambuConfig = document.getElementById('btn-bambu-config');
+  const btnCloseBambuModal = document.getElementById('btn-close-bambu-modal');
+  const btnTestBambuConn = document.getElementById('btn-test-bambu-conn');
+  const btnDemoBambuConn = document.getElementById('btn-demo-bambu-conn');
+  const btnBambuUseLiveData = document.getElementById('btn-bambu-use-live-data');
+
+  const inputBambuIp = document.getElementById('bambu-ip');
+  const inputBambuAccessCode = document.getElementById('bambu-access-code');
+  const inputBambuSerial = document.getElementById('bambu-serial');
+
+  // Pre-fill inputs from localStorage
+  if (inputBambuIp) inputBambuIp.value = bambuState.ip;
+  if (inputBambuAccessCode) inputBambuAccessCode.value = bambuState.accessCode;
+  if (inputBambuSerial) inputBambuSerial.value = bambuState.serial;
+
+  // Open modal listeners
+  if (btnBambuConnectHeader) {
+    btnBambuConnectHeader.addEventListener('click', () => {
+      if (modalBambuConnect) modalBambuConnect.classList.remove('hidden');
+    });
+  }
+
+  if (btnBambuConfig) {
+    btnBambuConfig.addEventListener('click', () => {
+      if (modalBambuConnect) modalBambuConnect.classList.remove('hidden');
+    });
+  }
+
+  if (btnCloseBambuModal) {
+    btnCloseBambuModal.addEventListener('click', () => {
+      if (modalBambuConnect) modalBambuConnect.classList.add('hidden');
+    });
+  }
+
+  // Save Credentials & Connect
+  if (btnTestBambuConn) {
+    btnTestBambuConn.addEventListener('click', () => {
+      const ip = inputBambuIp.value.trim();
+      const code = inputBambuAccessCode.value.trim();
+      const sn = inputBambuSerial.value.trim();
+
+      if (!ip || !code) {
+        showToast("⚠️ Preencha o Endereço IP e o Código de Acesso da Bambu A1.");
+        return;
+      }
+
+      bambuState.ip = ip;
+      bambuState.accessCode = code;
+      bambuState.serial = sn;
+
+      localStorage.setItem('calc3d_bambu_ip', ip);
+      localStorage.setItem('calc3d_bambu_code', code);
+      localStorage.setItem('calc3d_bambu_sn', sn);
+
+      if (modalBambuConnect) modalBambuConnect.classList.add('hidden');
+      showToast("📡 Conectando à Bambu A1 em " + ip + "...");
+      startBambuSimulation("Peça Fatiada A1", 48, 24.5);
+    });
+  }
+
+  // Demo Simulation Listener
+  if (btnDemoBambuConn) {
+    btnDemoBambuConn.addEventListener('click', () => {
+      if (modalBambuConnect) modalBambuConnect.classList.add('hidden');
+      startBambuSimulation("Vaso Geométrico Espiral A1", 38, 53.3);
+      showToast("🚀 Modo Simulação da Bambu A1 ativado com sucesso!");
+    });
+  }
+
+  // Use Live Data Button Listener
+  if (btnBambuUseLiveData) {
+    btnBambuUseLiveData.addEventListener('click', () => {
+      applyBambuLiveDataToCalculator();
+    });
+  }
+
+  function startBambuSimulation(jobName = "Impressão Bambu A1", totalMin = 45, weightG = 32.5) {
+    bambuState.isConnected = true;
+    bambuState.isSimulated = true;
+    bambuState.status = 'IMPRIMINDO';
+    bambuState.currentJob = jobName;
+    bambuState.timeRemainingMin = totalMin;
+    bambuState.filamentUsedG = weightG;
+    bambuState.progressPct = 10;
+
+    updateBambuUI();
+
+    if (bambuState.simTimer) clearInterval(bambuState.simTimer);
+    bambuState.simTimer = setInterval(() => {
+      if (bambuState.progressPct < 100) {
+        bambuState.progressPct += 5;
+        bambuState.timeRemainingMin = Math.max(0, Math.round(totalMin * (1 - bambuState.progressPct / 100)));
+        updateBambuUI();
+      } else {
+        bambuState.status = 'CONCLUÍDO';
+        updateBambuUI();
+        clearInterval(bambuState.simTimer);
+        showToast("🎉 Impressão da Bambu A1 Concluída! Você pode registrar no caixa.");
+      }
+    }, 4000);
+  }
+
+  function updateBambuUI() {
+    const dot = document.getElementById('bambu-dot');
+    const stateText = document.getElementById('bambu-live-state');
+    const jobPill = document.getElementById('bambu-live-job-pill');
+    const jobName = document.getElementById('bambu-live-job-name');
+    const timePill = document.getElementById('bambu-live-time-pill');
+    const timeRem = document.getElementById('bambu-live-time-rem');
+    const pct = document.getElementById('bambu-live-pct');
+    const actions = document.getElementById('bambu-status-actions');
+
+    if (!dot || !stateText) return;
+
+    if (bambuState.isConnected) {
+      dot.className = 'status-indicator-dot online';
+      stateText.textContent = bambuState.status;
+      stateText.className = 'text-accent';
+
+      if (jobPill && jobName) {
+        jobPill.classList.remove('hidden');
+        jobName.textContent = bambuState.currentJob;
+      }
+
+      if (timePill && timeRem && pct) {
+        timePill.classList.remove('hidden');
+        timeRem.textContent = `${bambuState.timeRemainingMin} min`;
+        pct.textContent = `${bambuState.progressPct}%`;
+      }
+
+      if (actions) actions.classList.remove('hidden');
+
+    } else {
+      dot.className = 'status-indicator-dot offline';
+      stateText.textContent = 'Desconectado';
+      stateText.className = 'text-muted';
+
+      if (jobPill) jobPill.classList.add('hidden');
+      if (timePill) timePill.classList.add('hidden');
+      if (actions) actions.classList.add('hidden');
+    }
+  }
+
+  function applyBambuLiveDataToCalculator() {
+    if (!bambuState.isConnected) return;
+
+    el.projectName.value = bambuState.currentJob || "Projeto Bambu A1";
+    el.filamentWeight.value = bambuState.filamentUsedG.toFixed(2);
+
+    const h = Math.floor(bambuState.timeRemainingMin / 60);
+    const m = bambuState.timeRemainingMin % 60;
+    el.printHours.value = h;
+    el.printMinutes.value = m;
+
+    showToast(`⚡ Dados da Bambu A1 carregados: ${bambuState.filamentUsedG.toFixed(1)}g | ${bambuState.timeRemainingMin} min`);
+    calculateAll();
+  }
+
   // --- Toast Notification ---
   function showToast(msg) {
     el.toastMessage.textContent = msg;
