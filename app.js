@@ -531,25 +531,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const mins = el.printMinutes.value;
     const price = el.finalSellingPrice.textContent;
 
+    const customerNameInput = document.getElementById('quote-customer-name');
+    const pixKeyInput = document.getElementById('quote-pix-key');
+
+    const customer = customerNameInput && customerNameInput.value.trim() ? `👤 *Cliente:* ${customerNameInput.value.trim()}\n` : '';
+    const pixKey = pixKeyInput && pixKeyInput.value.trim() ? `🔑 *Chave Pix:* ${pixKeyInput.value.trim()}\n` : '';
+
     const text = `
 ✨ *ORÇAMENTO DE IMPRESSÃO 3D* ✨
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 *Produto:* ${name}
+${customer}📦 *Produto:* ${name}
 🖨️ *Equipamento:* Bambu Lab A1 Combo (Alta Precisão)
 ⚖️ *Peso aproximado:* ${weight}g
 ⏱️ *Tempo de Produção:* ${hours}h ${mins}m
 
 💰 *VALOR FINAL:* R$ ${price}
-💳 *Formas de Pagamento:* Pix, Cartão ou Boleto
+${pixKey}💳 *Formas de Pagamento:* Pix, Cartão de Crédito ou Dinheiro
 🚚 *Prazo de Produção:* 1 a 2 dias úteis
+⏳ *Validade deste orçamento:* 7 dias
 
 _Qualidade garantida em filamento premium e acabamento artesanal!_
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Dúvidas ou alterações? Responda a esta mensagem!
+Dúvidas ou confirmação do pedido? Responda a esta mensagem!
 `.trim();
 
-    el.quoteTextBox.innerText = text;
+    if (el.quoteTextBox) el.quoteTextBox.innerText = text;
   }
+
+  // Event listeners for quote modal inputs
+  const quoteCustomerName = document.getElementById('quote-customer-name');
+  const quotePixKey = document.getElementById('quote-pix-key');
+  if (quoteCustomerName) quoteCustomerName.addEventListener('input', generateQuoteText);
+  if (quotePixKey) quotePixKey.addEventListener('input', generateQuoteText);
 
   // --- Finance & Cash Ledger Manager ---
   function registerCurrentSale() {
@@ -567,6 +580,19 @@ Dúvidas ou alterações? Responda a esta mensagem!
       costMachine: state.currentCalculation.costMachineTotal,
       costLabor: state.currentCalculation.costLabor,
     };
+
+    // Abater gramas do estoque se selecionado
+    const selectedSpoolId = el.filamentStockSelect ? el.filamentStockSelect.value : 'custom';
+    if (selectedSpoolId !== 'custom') {
+      const spool = state.spools.find(s => s.id === parseInt(selectedSpoolId));
+      if (spool) {
+        const usedWeight = state.currentCalculation.filamentWeightG || 0;
+        spool.weightRemainingG = Math.max(0, spool.weightRemainingG - usedWeight);
+        localStorage.setItem('calc3d_spools', JSON.stringify(state.spools));
+        renderSpoolInventory();
+        populateFilamentStockSelect();
+      }
+    }
 
     state.salesLedger.unshift(sale);
     localStorage.setItem('calc3d_sales_ledger', JSON.stringify(state.salesLedger));
@@ -589,6 +615,202 @@ Dúvidas ou alterações? Responda a esta mensagem!
       renderFinanceDashboard();
       showToast("Histórico de caixa zerado.");
     }
+  }
+
+  // --- Export Excel (.csv) ---
+  function exportSalesToCSV() {
+    if (state.salesLedger.length === 0) {
+      showToast("⚠️ Nenhuma venda cadastrada para exportar.");
+      return;
+    }
+
+    let csvContent = "\uFEFFData;Projeto / Peça;Preço de Venda (R$);Custo Produção (R$);Lucro Líquido (R$);Filamento (R$);Energia (R$);Máquina (R$);Mão de Obra (R$)\n";
+
+    state.salesLedger.forEach(item => {
+      csvContent += `"${item.date}";"${item.name}";"${(item.sellingPrice||0).toFixed(2)}";"${(item.costPrice||0).toFixed(2)}";"${(item.netProfit||0).toFixed(2)}";"${(item.costFilament||0).toFixed(2)}";"${(item.costEnergy||0).toFixed(2)}";"${(item.costMachine||0).toFixed(2)}";"${(item.costLabor||0).toFixed(2)}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Historico_Vendas_Calc3D_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("📊 Planilha Excel (.csv) baixada com sucesso!");
+  }
+
+  // --- Export & Import Backup (.json) ---
+  function exportBackupJSON() {
+    const backupData = {
+      version: "3.0.0",
+      exportDate: new Date().toISOString(),
+      salesLedger: state.salesLedger,
+      spools: state.spools,
+      bambuConfig: {
+        ip: bambuState.ip,
+        accessCode: bambuState.accessCode,
+        serial: bambuState.serial
+      }
+    };
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Backup_Calculadora3D_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("💾 Backup completo salvo com sucesso!");
+  }
+
+  function importBackupJSON(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.salesLedger && Array.isArray(data.salesLedger)) {
+          state.salesLedger = data.salesLedger;
+          localStorage.setItem('calc3d_sales_ledger', JSON.stringify(state.salesLedger));
+        }
+        if (data.spools && Array.isArray(data.spools)) {
+          state.spools = data.spools;
+          localStorage.setItem('calc3d_spools', JSON.stringify(state.spools));
+        }
+        renderFinanceDashboard();
+        renderSpoolInventory();
+        populateFilamentStockSelect();
+        showToast("🎉 Backup restaurado com sucesso!");
+      } catch (err) {
+        showToast("⚠️ Arquivo de backup inválido.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // --- Módulo Estoque de Filamentos ---
+  function renderSpoolInventory() {
+    const spoolTableBody = document.getElementById('spool-table-body');
+    const stockCountBadge = document.getElementById('stock-count-badge');
+
+    if (!spoolTableBody) return;
+
+    if (stockCountBadge) stockCountBadge.textContent = state.spools.length;
+
+    if (state.spools.length === 0) {
+      spoolTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+            Nenhuma bobina em estoque. Preencha o formulário para adicionar carretéis!
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    state.spools.forEach(spool => {
+      const pct = Math.min(100, Math.round((spool.weightRemainingG / 1000) * 100));
+      const colorTag = spool.weightRemainingG > 300 ? 'text-accent' : (spool.weightRemainingG > 100 ? 'text-warning' : 'text-danger');
+
+      html += `
+        <tr>
+          <td><strong>${spool.type}</strong> (${spool.brand})</td>
+          <td><span class="tag tag-indigo">${spool.color}</span></td>
+          <td>
+            <strong class="${colorTag}">${spool.weightRemainingG.toFixed(0)}g</strong> 
+            <small class="text-muted">(${pct}%)</small>
+          </td>
+          <td>${fmtCurrency(spool.costPerKg)}/kg</td>
+          <td>
+            <button class="btn btn-secondary btn-sm btn-delete-spool" data-id="${spool.id}" style="padding: 2px 8px;">
+              &times;
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    spoolTableBody.innerHTML = html;
+
+    // Attach delete listeners
+    document.querySelectorAll('.btn-delete-spool').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = parseInt(e.target.dataset.id);
+        deleteSpool(id);
+      });
+    });
+  }
+
+  function populateFilamentStockSelect() {
+    const select = document.getElementById('filament-stock-select');
+    if (!select) return;
+
+    let html = '<option value="custom">-- Digitar Valor Manual por kg --</option>';
+    state.spools.forEach(spool => {
+      html += `<option value="${spool.id}">${spool.brand} ${spool.type} ${spool.color} - ${spool.weightRemainingG.toFixed(0)}g rest. (${fmtCurrency(spool.costPerKg)}/kg)</option>`;
+    });
+
+    select.innerHTML = html;
+  }
+
+  function addSpool(brand, type, color, weightG, costPerKg) {
+    const newSpool = {
+      id: Date.now(),
+      brand: brand,
+      type: type,
+      color: color,
+      weightRemainingG: parseFloat(weightG),
+      costPerKg: parseFloat(costPerKg)
+    };
+
+    state.spools.push(newSpool);
+    localStorage.setItem('calc3d_spools', JSON.stringify(state.spools));
+    renderSpoolInventory();
+    populateFilamentStockSelect();
+    showToast(`Bobina "${brand} ${type} ${color}" adicionada ao estoque!`);
+  }
+
+  function deleteSpool(id) {
+    state.spools = state.spools.filter(s => s.id !== id);
+    localStorage.setItem('calc3d_spools', JSON.stringify(state.spools));
+    renderSpoolInventory();
+    populateFilamentStockSelect();
+    showToast("Bobina removida do estoque.");
+  }
+
+  // Handle Add Spool Form Submission
+  const formAddSpool = document.getElementById('form-add-spool');
+  if (formAddSpool) {
+    formAddSpool.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const brand = document.getElementById('spool-brand').value;
+      const type = document.getElementById('spool-type').value;
+      const color = document.getElementById('spool-color').value;
+      const weight = document.getElementById('spool-weight').value;
+      const cost = document.getElementById('spool-cost').value;
+
+      addSpool(brand, type, color, weight, cost);
+      formAddSpool.reset();
+    });
+  }
+
+  // Handle Filament Stock Select Change
+  const filamentStockSelect = document.getElementById('filament-stock-select');
+  if (filamentStockSelect) {
+    filamentStockSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val !== 'custom') {
+        const spool = state.spools.find(s => s.id === parseInt(val));
+        if (spool) {
+          el.filamentCost.value = spool.costPerKg.toFixed(2);
+          calculateAll();
+        }
+      }
+    });
   }
 
   function renderFinanceDashboard() {
@@ -668,20 +890,41 @@ Dúvidas ou alterações? Responda a esta mensagem!
   }
 
   // --- Main View Tabs Switcher ---
-  if (el.navTabCalc && el.navTabFinance) {
-    el.navTabCalc.addEventListener('click', () => {
-      el.navTabCalc.classList.add('active');
-      el.navTabFinance.classList.remove('active');
-      el.viewCalculator.classList.remove('hidden');
-      el.viewFinance.classList.add('hidden');
+  const navTabStock = document.getElementById('nav-tab-stock');
+  const viewInventory = document.getElementById('view-inventory');
+
+  function switchMainView(activeTab, activeView) {
+    [el.navTabCalc, el.navTabFinance, navTabStock].forEach(tab => {
+      if (tab) tab.classList.remove('active');
+    });
+    [el.viewCalculator, el.viewFinance, viewInventory].forEach(view => {
+      if (view) view.classList.add('hidden');
     });
 
-    el.navTabFinance.addEventListener('click', () => {
-      el.navTabFinance.classList.add('active');
-      el.navTabCalc.classList.remove('active');
-      el.viewFinance.classList.remove('hidden');
-      el.viewCalculator.classList.add('hidden');
-      renderFinanceDashboard();
+    if (activeTab) activeTab.classList.add('active');
+    if (activeView) activeView.classList.remove('hidden');
+  }
+
+  if (el.navTabCalc) el.navTabCalc.addEventListener('click', () => switchMainView(el.navTabCalc, el.viewCalculator));
+  if (el.navTabFinance) el.navTabFinance.addEventListener('click', () => { switchMainView(el.navTabFinance, el.viewFinance); renderFinanceDashboard(); });
+  if (navTabStock) navTabStock.addEventListener('click', () => { switchMainView(navTabStock, viewInventory); renderSpoolInventory(); });
+
+  // Export CSV & Backup Listeners
+  const btnExportCsv = document.getElementById('btn-export-csv');
+  if (btnExportCsv) btnExportCsv.addEventListener('click', exportSalesToCSV);
+
+  const btnSaveBackup = document.getElementById('btn-save-backup');
+  if (btnSaveBackup) btnSaveBackup.addEventListener('click', exportBackupJSON);
+
+  const btnImportBackup = document.getElementById('btn-import-backup');
+  const inputImportBackup = document.getElementById('input-import-backup');
+  if (btnImportBackup && inputImportBackup) {
+    btnImportBackup.addEventListener('click', () => inputImportBackup.click());
+    inputImportBackup.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        importBackupJSON(e.target.files[0]);
+        inputImportBackup.value = '';
+      }
     });
   }
 

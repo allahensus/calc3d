@@ -62,6 +62,11 @@
           Painel Financeiro & Fluxo de Caixa
           <span class="badge-count" id="sales-count-badge">0</span>
         </button>
+        <button class="main-tab-btn" id="nav-tab-stock">
+          <i data-lucide="package"></i>
+          Estoque de Filamentos
+          <span class="badge-count" id="stock-count-badge">0</span>
+        </button>
       </div>
     </nav>
   </header>
@@ -174,6 +179,18 @@
               <div class="input-wrapper">
                 <i data-lucide="tag"></i>
                 <input type="text" id="project-name" value="Vaso Geométrico Espiral" placeholder="Ex: Chaveiro Personalizado">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 0.85rem;">
+            <div class="form-group span-2">
+              <label for="filament-stock-select">Usar Bobina do seu Estoque Cadastrado (Opcional)</label>
+              <div class="input-wrapper">
+                <i data-lucide="package"></i>
+                <select id="filament-stock-select" style="width: 100%; background: var(--bg-card-hover); color: var(--text-main); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.65rem 0.85rem 0.65rem 2.5rem; font-size: 0.875rem;">
+                  <option value="custom">-- Digitar Valor Manual por kg --</option>
+                </select>
               </div>
             </div>
           </div>
@@ -789,10 +806,21 @@
             <i data-lucide="receipt" class="icon-warning"></i>
             <h2>Histórico de Vendas & Registro de Caixa</h2>
           </div>
-          <button id="btn-clear-finance-history" class="btn btn-secondary btn-sm">
-            <i data-lucide="trash-2"></i>
-            Limpar Histórico
-          </button>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button id="btn-export-csv" class="btn btn-preset btn-sm" title="Baixar Planilha Excel">
+              <i data-lucide="file-spreadsheet"></i> Exportar Excel (.csv)
+            </button>
+            <button id="btn-save-backup" class="btn btn-secondary btn-sm" title="Salvar Arquivo de Backup">
+              <i data-lucide="download"></i> Backup (.json)
+            </button>
+            <button id="btn-import-backup" class="btn btn-secondary btn-sm" title="Restaurar Arquivo de Backup">
+              <i data-lucide="upload"></i> Restaurar
+            </button>
+            <input type="file" id="input-import-backup" accept=".json" class="hidden-input">
+            <button id="btn-clear-finance-history" class="btn btn-secondary btn-sm">
+              <i data-lucide="trash-2"></i> Limpar
+            </button>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -815,6 +843,108 @@
       </div>
     </div> <!-- End #view-finance -->
 
+    <!-- Visualização 3: Estoque de Filamentos (Bobinas) -->
+    <div id="view-inventory" class="view-panel">
+      <div class="main-layout" style="grid-template-columns: 1fr 2fr;">
+        
+        <!-- Formulário de Cadastro de Filamento -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="plus-circle" class="icon-primary"></i>
+              <h2>Cadastrar Nova Bobina</h2>
+            </div>
+          </div>
+
+          <form id="form-add-spool">
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label for="spool-brand">Marca / Fabricante</label>
+              <div class="input-wrapper">
+                <i data-lucide="tag"></i>
+                <input type="text" id="spool-brand" placeholder="Ex: Bambu Lab, Esun, Voolt3D" required>
+              </div>
+            </div>
+
+            <div class="form-grid-2" style="margin-bottom: 0.85rem;">
+              <div class="form-group">
+                <label for="spool-type">Material</label>
+                <div class="input-wrapper">
+                  <i data-lucide="layers"></i>
+                  <select id="spool-type" style="width: 100%; background: var(--bg-card-hover); color: var(--text-main); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.65rem 0.85rem 0.65rem 2.5rem; font-size: 0.875rem;">
+                    <option value="PLA">PLA</option>
+                    <option value="PETG">PETG</option>
+                    <option value="ABS">ABS</option>
+                    <option value="TPU">TPU</option>
+                    <option value="ASA">ASA</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="spool-color">Cor da Bobina</label>
+                <div class="input-wrapper">
+                  <i data-lucide="palette"></i>
+                  <input type="text" id="spool-color" placeholder="Ex: Roxo, Preto, Branco" required>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid-2" style="margin-bottom: 1rem;">
+              <div class="form-group">
+                <label for="spool-weight">Peso Restante (g)</label>
+                <div class="input-wrapper">
+                  <i data-lucide="scale"></i>
+                  <input type="number" id="spool-weight" value="1000" step="10" min="0" required>
+                  <span class="unit">g</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="spool-cost">Preço Pago (R$/kg)</label>
+                <div class="input-wrapper">
+                  <i data-lucide="dollar-sign"></i>
+                  <input type="number" id="spool-cost" value="110.00" step="1" min="0" required>
+                  <span class="unit">R$/kg</span>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
+              <i data-lucide="plus"></i> Adicionar ao Estoque
+            </button>
+          </form>
+        </div>
+
+        <!-- Tabela de Bobinas Cadastradas -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i data-lucide="package" class="icon-warning"></i>
+              <h2>Bobinas em Estoque</h2>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="wholesale-table">
+              <thead>
+                <tr>
+                  <th>Material / Marca</th>
+                  <th>Cor</th>
+                  <th>Peso Restante</th>
+                  <th>Preço/kg</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="spool-table-body">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div> <!-- End #view-inventory -->
+
   </main>
 
   <!-- Modal Orçamento para WhatsApp / PDF -->
@@ -829,7 +959,24 @@
       </div>
 
       <div class="modal-body">
-        <p class="modal-intro">Copie a mensagem pré-formatada para enviar no WhatsApp ou imprima como recibo/PDF:</p>
+        <div class="form-grid-2" style="margin-bottom: 0.85rem;">
+          <div class="form-group">
+            <label for="quote-customer-name">Nome do Cliente (Opcional)</label>
+            <div class="input-wrapper">
+              <i data-lucide="user"></i>
+              <input type="text" id="quote-customer-name" placeholder="Ex: Maria Silva">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="quote-pix-key">Sua Chave Pix (opcional)</label>
+            <div class="input-wrapper">
+              <i data-lucide="qr-code"></i>
+              <input type="text" id="quote-pix-key" placeholder="Ex: seu-email@pix.com.br">
+            </div>
+          </div>
+        </div>
+
+        <p class="modal-intro">Mensagem formatada para WhatsApp / Documento Recibo:</p>
 
         <div class="quote-preview-box" id="quote-text-box" contenteditable="true">
           <!-- Generated via JS -->
@@ -926,6 +1073,6 @@
     <p>Calculadora de Impressão 3D Pro &bull; Desenvolvido para <strong>Bambu Lab A1 Combo</strong> & Fatiadores 3D</p>
   </footer>
 
-  <script src="app.js?v=3.0.0"></script>
+  <script src="app.js?v=3.5.0"></script>
 </body>
 </html>
